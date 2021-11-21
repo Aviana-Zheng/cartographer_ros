@@ -45,8 +45,8 @@ class LuaParameterDictionary {
   LuaParameterDictionary(const string& code,
                          std::unique_ptr<FileResolver> file_resolver);
 
-  LuaParameterDictionary(const LuaParameterDictionary&) = delete;
-  LuaParameterDictionary& operator=(const LuaParameterDictionary&) = delete;
+  LuaParameterDictionary(const LuaParameterDictionary&) = delete;   //禁止使用该函数
+  LuaParameterDictionary& operator=(const LuaParameterDictionary&) = delete;     //禁止使用该函数
 
   // Constructs a LuaParameterDictionary without reference counting.
   static std::unique_ptr<LuaParameterDictionary> NonReferenceCounted(

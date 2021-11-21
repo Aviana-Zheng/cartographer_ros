@@ -20,7 +20,7 @@
 namespace cartographer {
 namespace common {
 
-constexpr char kConfigurationFilesDirectory[] =
+constexpr char kConfigurationFilesDirectory[] =      //设置配置文件的路径
     "@CARTOGRAPHER_CONFIGURATION_FILES_DIRECTORY@";
 constexpr char kSourceDirectory[] = "@PROJECT_SOURCE_DIR@";
 

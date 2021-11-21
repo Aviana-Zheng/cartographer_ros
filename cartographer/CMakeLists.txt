@@ -93,7 +93,7 @@ set_source_files_properties(${ALL_PROTO_SRCS} ${ALL_PROTO_HDRS} PROPERTIES GENER
 list(APPEND ALL_SRCS ${ALL_PROTO_SRCS} ${ALL_PROTO_HDRS})
 
 add_library(${PROJECT_NAME} ${ALL_SRCS})
-
+# 加入一个配置头文件，用于处理 CMake 对源码的设置
 configure_file(
   ${PROJECT_SOURCE_DIR}/cartographer/common/config.h.cmake
   ${PROJECT_BINARY_DIR}/cartographer/common/config.h)
