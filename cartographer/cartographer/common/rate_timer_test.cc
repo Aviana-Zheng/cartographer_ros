@@ -23,8 +23,11 @@ namespace common {
 namespace {
 
 TEST(RateTimerTest, ComputeRate) {
-  RateTimer<> rate_timer(common::FromSeconds(1.));
+  //默认模板参数是steady_clock,设置时间段是1s
+  RateTimer<> rate_timer(common::FromSeconds(1.));  
+  // 时间点,42us
   common::Time time = common::FromUniversal(42);
+  //每隔0.1s产生一次事件,产生100次
   for (int i = 0; i < 100; ++i) {
     rate_timer.Pulse(time);
     time += common::FromSeconds(0.1);
@@ -32,6 +35,7 @@ TEST(RateTimerTest, ComputeRate) {
   EXPECT_NEAR(10., rate_timer.ComputeRate(), 1e-3);
 }
 
+/*模拟的时间clock类*/
 struct SimulatedClock {
   using rep = std::chrono::steady_clock::rep;
   using period = std::chrono::steady_clock::period;
@@ -46,15 +50,21 @@ struct SimulatedClock {
 SimulatedClock::time_point SimulatedClock::time;
 
 TEST(RateTimerTest, ComputeWallTimeRateRatio) {
+  //时间点 42us
   common::Time time = common::FromUniversal(42);
+  //时间段是1s
   RateTimer<SimulatedClock> rate_timer(common::FromSeconds(1.));
+  //100次事件,0.1s一次.
   for (int i = 0; i < 100; ++i) {
     rate_timer.Pulse(time);
+    //加0.1s,代表事件发生的时间(调用了Pulse)
     time += common::FromSeconds(0.1);
+    //模仿的时间,加0.05s,代表流失了0.05秒.
     SimulatedClock::time +=
         std::chrono::duration_cast<SimulatedClock::duration>(
             std::chrono::duration<double>(0.05));
   }
+  //0.1/0.05==2
   EXPECT_NEAR(2., rate_timer.ComputeWallTimeRateRatio(), 1e-3);
 }
 

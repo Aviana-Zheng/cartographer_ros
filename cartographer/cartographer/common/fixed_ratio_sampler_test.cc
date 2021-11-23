@@ -23,13 +23,15 @@ namespace common {
 namespace {
 
 TEST(FixedRatioSamplerTest, AlwaysTrue) {
-  FixedRatioSampler fixed_ratio_sampler(1.);
+  //固定采样率是1hz，每次Pulse都采集samples
+  FixedRatioSampler fixed_ratio_sampler(1.);   
   for (int i = 0; i < 100; ++i) {
     EXPECT_TRUE(fixed_ratio_sampler.Pulse());
   }
 }
 
 TEST(FixedRatioSamplerTest, AlwaysFalse) {
+  //0 hz，不采集samples
   FixedRatioSampler fixed_ratio_sampler(0.);
   for (int i = 0; i < 100; ++i) {
     EXPECT_FALSE(fixed_ratio_sampler.Pulse());
@@ -37,17 +39,21 @@ TEST(FixedRatioSamplerTest, AlwaysFalse) {
 }
 
 TEST(FixedRatioSamplerTest, SometimesTrue) {
+  //0.5hz
   FixedRatioSampler fixed_ratio_sampler(0.5);
   for (int i = 0; i < 100; ++i) {
+    //每2次Pulse采集一次samples
     EXPECT_EQ(i % 2 == 0, fixed_ratio_sampler.Pulse());
   }
 }
 
 TEST(FixedRatioSamplerTest, FirstPulseIsTrue) {
   // Choose a very very small positive number for the ratio.
+  //0.000000...001hz
   FixedRatioSampler fixed_ratio_sampler(1e-20);
   EXPECT_TRUE(fixed_ratio_sampler.Pulse());
   for (int i = 0; i < 100; ++i) {
+    //每100000000次Pulse采集一次samples
     EXPECT_FALSE(fixed_ratio_sampler.Pulse());
   }
 }

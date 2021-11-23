@@ -42,7 +42,8 @@ class LuaParameterDictionaryTest : public ::testing::Test {
     }
   }
 };
-
+// gtest测试框架中的TEST_F宏，使用它之前，需要自定类并且继承testing::Test
+// 两个及以上的测试使用相同的数据,可以使用 test fixtures.使用相同的数据测试几个不同的测试.
 TEST_F(LuaParameterDictionaryTest, GetInt) {
   auto dict = MakeDictionary("return { blah = 100 }");
   ASSERT_EQ(dict->GetInt("blah"), 100);

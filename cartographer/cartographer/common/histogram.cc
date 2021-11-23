@@ -48,12 +48,16 @@ string Histogram::ToString(const int buckets) const {
   float lower_bound = min;
   int total_count = 0;
   for (int i = 0; i != buckets; ++i) {
+    // 把线段A-B等分buckets份，并求取等分后的线段的端点值
+    // eg：端点1：
+    // a + 1 * (b - a) * buckets = b * 1 / buckets + a * (buckets - 1) / buckets;
     const float upper_bound =
         (i + 1 == buckets)
             ? max
-            : (max * (i + 1) / buckets + min * (buckets - i - 1) / buckets);
+            : (max * (i + 1) / buckets + min * (buckets - i - 1) / buckets); // i从0开始，需要加1
     int count = 0;
     for (const float value : values_) {
+      // 最后一个篮子时 i + 1 == buckets，可以取到最大值upper_bound，其他不能取到区间最大值
       if (lower_bound <= value &&
           (i + 1 == buckets ? value <= upper_bound : value < upper_bound)) {
         ++count;
