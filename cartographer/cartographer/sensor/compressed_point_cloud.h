@@ -27,6 +27,13 @@
 
 namespace cartographer {
 namespace sensor {
+/*
+CompressedPointCloud是点云压缩类,
+目的：压缩ponits以减少存储空间，压缩后有精度损失。
+方法：按照block分组。
+
+只有一个私有的
+*/
 
 // A compressed representation of a point cloud consisting of a collection of
 // points (Vector3f).
@@ -35,7 +42,7 @@ namespace sensor {
 // point with a fixed bit rate in relation to the block.
 class CompressedPointCloud {
  public:
-  class ConstIterator;
+  class ConstIterator;  //前置声明
 
   CompressedPointCloud() : num_points_(0) {}
   explicit CompressedPointCloud(const PointCloud& point_cloud);
@@ -57,6 +64,7 @@ class CompressedPointCloud {
   size_t num_points_;
 };
 
+/*前行迭代器*/
 // Forward iterator for compressed point clouds.
 class CompressedPointCloud::ConstIterator
     : public std::iterator<std::forward_iterator_tag, Eigen::Vector3f> {

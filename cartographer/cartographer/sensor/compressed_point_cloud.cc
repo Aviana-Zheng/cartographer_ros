@@ -96,6 +96,12 @@ void CompressedPointCloud::ConstIterator::ReadNextPoint() {
       kPrecision;
 }
 
+
+/*
+最重要的构造函数
+压缩点云
+*/
+//point_cloud是一个3f的vector,压缩到point_data_中储存
 CompressedPointCloud::CompressedPointCloud(const PointCloud& point_cloud)
     : num_points_(point_cloud.size()) {
   // Distribute points into blocks.
@@ -109,7 +115,7 @@ CompressedPointCloud::CompressedPointCloud(const PointCloud& point_cloud)
   CHECK_LE(point_cloud.size(), std::numeric_limits<int>::max());
   for (int point_index = 0; point_index < static_cast<int>(point_cloud.size());
        ++point_index) {
-    const Eigen::Vector3f& point = point_cloud[point_index];
+    const Eigen::Vector3f& point = point_cloud[point_index];   //获取某个point{x,y,z}
     CHECK_LT(point.cwiseAbs().maxCoeff() / kPrecision,
              1 << kMaxBitsPerDirection)
         << "Point out of bounds: " << point;
@@ -145,6 +151,7 @@ CompressedPointCloud::CompressedPointCloud(const PointCloud& point_cloud)
   CHECK_EQ(num_blocks, 0);
 }
 
+/*私有的构造函数,外部不能调用*/
 CompressedPointCloud::CompressedPointCloud(const std::vector<int32>& point_data,
                                            size_t num_points)
     : point_data_(point_data), num_points_(num_points) {}
@@ -153,17 +160,20 @@ bool CompressedPointCloud::empty() const { return num_points_ == 0; }
 
 size_t CompressedPointCloud::size() const { return num_points_; }
 
+//迭代器首
 CompressedPointCloud::ConstIterator CompressedPointCloud::begin() const {
   return ConstIterator(this);
 }
 
+//迭代器尾
 CompressedPointCloud::ConstIterator CompressedPointCloud::end() const {
   return ConstIterator::EndIterator(this);
 }
 
 PointCloud CompressedPointCloud::Decompress() const {
-  PointCloud decompressed;
+  PointCloud decompressed;    //Vector3f组成的vector
   for (const Eigen::Vector3f& point : *this) {
+    //此处调用的是迭代器函数,begin(),end()
     decompressed.push_back(point);
   }
   return decompressed;
@@ -171,9 +181,9 @@ PointCloud CompressedPointCloud::Decompress() const {
 
 proto::CompressedPointCloud CompressedPointCloud::ToProto() const {
   proto::CompressedPointCloud result;
-  result.set_num_points(num_points_);
+  result.set_num_points(num_points_);    //序列化点云的个数
   for (const int32 data : point_data_) {
-    result.add_point_data(data);
+    result.add_point_data(data);      //依次序添加数据 
   }
   return result;
 }
