@@ -39,9 +39,12 @@ Eigen::Vector3d TranslationFromDictionary(
 
 Eigen::Quaterniond RollPitchYaw(const double roll, const double pitch,
                                 const double yaw) {
+  //AngleAxisd: 使用旋转的角度和旋转轴向量（此向量为单位向量）来初始化角轴
+  //以（1,0,0）为旋转轴，绕该轴逆时针旋转roll度
   const Eigen::AngleAxisd roll_angle(roll, Eigen::Vector3d::UnitX());
   const Eigen::AngleAxisd pitch_angle(pitch, Eigen::Vector3d::UnitY());
   const Eigen::AngleAxisd yaw_angle(yaw, Eigen::Vector3d::UnitZ());
+  // AngleAxisd到Quaterniond的隐式转换
   return yaw_angle * pitch_angle * roll_angle;
 }
 

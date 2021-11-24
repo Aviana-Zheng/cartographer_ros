@@ -27,15 +27,20 @@ namespace transform {
 namespace {
 
 TEST(TransformTest, GetAngle) {
-  std::mt19937 rng(42);
+  std::mt19937 rng(42);   //随机数种子
+  //[0- pi],概率均匀分布
   std::uniform_real_distribution<float> angle_distribution(0.f, M_PI);
+  //[-1 ,1]
   std::uniform_real_distribution<float> position_distribution(-1.f, 1.f);
+  
 
   for (int i = 0; i != 100; ++i) {
     const float angle = angle_distribution(rng);
     const float x = position_distribution(rng);
     const float y = position_distribution(rng);
     const float z = position_distribution(rng);
+    //, for vectors, the l2 norm of *this, and for matrices the Frobenius norm.
+    //给定角度绕axis旋转，得到Rigid3f，再求Rigid3f的angle。2者理论上应该相同
     const Eigen::Vector3f axis = Eigen::Vector3f(x, y, z).normalized();
     EXPECT_NEAR(angle,
                 GetAngle(Rigid3f::Rotation(AngleAxisVectorToRotationQuaternion(
@@ -48,10 +53,12 @@ TEST(TransformTest, GetYaw) {
   const auto rotation =
       Rigid3d::Rotation(Eigen::AngleAxisd(1.2345, Eigen::Vector3d::UnitZ()));
   EXPECT_NEAR(1.2345, GetYaw(rotation), 1e-9);
+  //四元数的逆就是共轭。
   EXPECT_NEAR(-1.2345, GetYaw(rotation.inverse()), 1e-9);
 }
 
 TEST(TransformTest, GetYawAxisOrdering) {
+  //乘法顺序不能颠倒。zyx
   const auto rotation =
       Rigid3d::Rotation(Eigen::AngleAxisd(1.2345, Eigen::Vector3d::UnitZ()) *
                         Eigen::AngleAxisd(0.4321, Eigen::Vector3d::UnitY()) *

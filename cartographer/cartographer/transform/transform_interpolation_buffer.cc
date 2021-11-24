@@ -45,12 +45,16 @@ bool TransformInterpolationBuffer::Has(const common::Time time) const {
 transform::Rigid3d TransformInterpolationBuffer::Lookup(
     const common::Time time) const {
   CHECK(Has(time)) << "Missing transform for: " << time;
+  // 这两个函数内部使用了二分查找，所以必须用在有序的区间上
+  // std::lower_bound() 是在区间内找到第一个大于等于 value 的值的位置并返回，如果没找到就返回 end() 位置。
+  // 而 std::upper_bound() 是找到第一个大于 value 值的位置并返回，如果找不到同样返回 end() 位置。
   auto start =
       std::lower_bound(deque_.begin(), deque_.end(), time,
                        [](const TimestampedTransform& timestamped_transform,
                           const common::Time time) {
                          return timestamped_transform.time < time;
                        });
+  // 判断time是否位于端点处
   auto end = start;
   if (end->time == time) {
     return end->transform;
@@ -59,12 +63,14 @@ transform::Rigid3d TransformInterpolationBuffer::Lookup(
   if (start->time == time) {
     return start->transform;
   }
-
+  // 如果time不在端点处，则进行插值
   const double duration = common::ToSeconds(end->time - start->time);
   const double factor = common::ToSeconds(time - start->time) / duration;
   const Eigen::Vector3d origin =
       start->transform.translation() +
       (end->transform.translation() - start->transform.translation()) * factor;
+  // 可以使用被称为球面线性插值（Slerp Algorithm）的方法对四元数进行插值运算，
+  // 从而解决了平滑旋转的插值问题
   const Eigen::Quaterniond rotation =
       Eigen::Quaterniond(start->transform.rotation())
           .slerp(factor, Eigen::Quaterniond(end->transform.rotation()));

@@ -291,42 +291,66 @@ Quaternion rotation_;
 template <typename FloatType>
 class Rigid3 {
  public:
+  //3行1列的矩阵
   using Vector = Eigen::Matrix<FloatType, 3, 1>;
+  //四元数
   using Quaternion = Eigen::Quaternion<FloatType>;
+  //轴角
   using AngleAxis = Eigen::AngleAxis<FloatType>;
 
+  //构造函数，默认[1,0,0]和[1,0,0,0]。
   Rigid3()
       : translation_(Vector::Identity()), rotation_(Quaternion::Identity()) {}
+  //构造函数，提供平移向量[dx,dy,dz]和四元数
   Rigid3(const Vector& translation, const Quaternion& rotation)
       : translation_(translation), rotation_(rotation) {}
+  //构造函数，提供平移向量[dx,dy,dz]和轴角
   Rigid3(const Vector& translation, const AngleAxis& rotation)
       : translation_(translation), rotation_(rotation) {}
-
+  
+  //静态成员函数.[dx,dy,dz]为0,只绕轴角旋转。
   static Rigid3 Rotation(const AngleAxis& angle_axis) {
     return Rigid3(Vector::Zero(), Quaternion(angle_axis));
   }
 
+  //静态成员函数, 只旋转，不平移。
   static Rigid3 Rotation(const Quaternion& rotation) {
     return Rigid3(Vector::Zero(), rotation);
   }
 
+  //不旋转,只平移[dx,dy,dz]
   static Rigid3 Translation(const Vector& vector) {
     return Rigid3(vector, Quaternion::Identity());
   }
 
+  //[0,0,0]和[1,0,0,0]。
   static Rigid3<FloatType> Identity() {
     return Rigid3<FloatType>(Vector::Zero(), Quaternion::Identity());
   }
 
+  //类型转换  
   template <typename OtherType>
   Rigid3<OtherType> cast() const {
     return Rigid3<OtherType>(translation_.template cast<OtherType>(),
                              rotation_.template cast<OtherType>());
   }
 
+  //获取数据成员
   const Vector& translation() const { return translation_; }
   const Quaternion& rotation() const { return rotation_; }
 
+  /*求逆,即逆方向旋转和平移。
+  细节：
+  1),四元数的逆是共轭。
+  2),求[-dx',-dy',-dz']
+
+  ----公式推导----------
+
+  P'=R*P+t;
+  P=R^(-1)*(P'-t)=R^(-1)* P'-R^(-1)*t.
+  --------------------
+
+  */
   Rigid3 inverse() const {
     const Quaternion rotation = rotation_.conjugate();
     const Vector translation = -(rotation * translation_);
@@ -354,18 +378,40 @@ class Rigid3 {
   }
 
  private:
-  Vector translation_;
-  Quaternion rotation_;
+  Vector translation_;      //x,y,z方向上的平移向量[dx,dy,dz]
+  Quaternion rotation_;     //四元数。旋转表达。
 };
 
+
+//乘法操作：Rigid3*Rigid3,即连续2次刚性变换，得到Rigid3
+/*
+
+------公式推导--------
+
+P'=R1*P+t1;
+
+P''=R2*P'+t2,即
+
+P''=R2(R1*P+t1)+t2=R2*R1*P+R2*t1+t2.
+
+--------------------
+
+*/
 template <typename FloatType>
 Rigid3<FloatType> operator*(const Rigid3<FloatType>& lhs,
                             const Rigid3<FloatType>& rhs) {
   return Rigid3<FloatType>(
-      lhs.rotation() * rhs.translation() + lhs.translation(),
-      (lhs.rotation() * rhs.rotation()).normalized());
+      lhs.rotation() * rhs.translation() + lhs.translation(),    //R2*t1+t2
+      (lhs.rotation() * rhs.rotation()).normalized());         //R2*R1
 }
 
+/* 对点p(x,y,z)进行刚性变换。得到p'
+
+--------公式推导---------
+
+P'=R*P+t;
+
+------------------------ */
 template <typename FloatType>
 typename Rigid3<FloatType>::Vector operator*(
     const Rigid3<FloatType>& rigid,
@@ -373,6 +419,7 @@ typename Rigid3<FloatType>::Vector operator*(
   return rigid.rotation() * point + rigid.translation();
 }
 
+//重载<< 输出运算符
 // This is needed for gmock.
 template <typename T>
 std::ostream& operator<<(std::ostream& os,
@@ -384,10 +431,40 @@ std::ostream& operator<<(std::ostream& os,
 using Rigid3d = Rigid3<double>;
 using Rigid3f = Rigid3<float>;
 
+/*
+-----------左手---------------
+游戏引擎架构,p126,姿态角（Euler角）:
+pitch是围绕X轴旋转，也叫做俯仰角
+yaw是围绕Y轴旋转，也叫偏航角
+roll是围绕Z轴旋转，也叫翻滚角
+
+
+-----------右手------------
+右手笛卡尔坐标系绕x,y和z轴的旋转分别叫做roll, pitch 和 yaw 旋转。
+google采用的就是右手:roll, pitch, yaw. 
+
+绕x轴:θx 是 roll 角，和右手螺旋的方向相反（在yz平面顺时针）
+绕y轴:θy 是 pitch 角，和右手螺旋的方向相反（在zx平面顺时针）。
+绕z轴:θz 是yaw 角，和右手螺旋的方向相反（在xy平面顺时针）。
+
+ref:https://zh.wikipedia.org/wiki/%E6%97%8B%E8%BD%AC%E7%9F%A9%E9%98%B5
+*/
+
+//返回根据roll,pathch和yaw构成的4元数
 // Converts (roll, pitch, yaw) to a unit length quaternion. Based on the URDF
 // specification http://wiki.ros.org/urdf/XML/joint.
 Eigen::Quaterniond RollPitchYaw(double roll, double pitch, double yaw);
 
+/*
+
+从assets_writer_backpack_2d.lua取得如：
+
+XY_TRANSFORM =  {
+  translation = { 0., 0., 0. },
+  rotation = { 0., -math.pi / 2., 0., },
+}
+
+*/
 // Returns an transform::Rigid3d given a 'dictionary' containing 'translation'
 // (x, y, z) and 'rotation' which can either we an array of (roll, pitch, yaw)
 // or a dictionary with (w, x, y, z) values as a quaternion.
@@ -397,3 +474,60 @@ Rigid3d FromDictionary(common::LuaParameterDictionary* dictionary);
 }  // namespace cartographer
 
 #endif  // CARTOGRAPHER_TRANSFORM_RIGID_TRANSFORM_H_
+
+
+/*
+
+coefficient-wise operations系数操作
+
+the Array class provides an easy way to perform coefficient-wise operations,
+which might not have a linear algebraic meaning,
+such as adding a constant to every coefficient in the array or 
+multiplying two arrays coefficient-wise.
+*/
+
+
+
+/*
+ 
+3D旋转的简单推导：
+可以把一个3D旋转转换为绕基本坐标轴的旋转，即绕三个坐标值x、y、z的旋转。
+
+一）绕X轴的旋转：x不变。围绕x坐标画圆。yoz平面，方向是顺时针(与右手方向相反)
+点P(x,y,z)绕x轴旋转θ角得到点P’(x’,y’,z’)。由于是绕x轴进行的旋转，
+因此x坐标保持不变，y和z组成的yoz（o是坐标原点）平面上进行的是一个二维的旋转
+
+p=[1,0,0],q=[0,1,0],r=[0,0,1]
+三个坐标轴单位向量p,q,r旋转后：
+p'=[1, 0,    0]
+q'=[0,cosθ,-sinθ]
+r'=[0,sinθ,cosθ]
+所以:
+x′=x 
+y′=ycosθ−zsinθ 
+z′=ysinθ+zcosθ 
+
+二）绕Y轴旋转：Y坐标保持不变，ZOX平面
+p'=[cosθ, 0, sinθ]
+q'=[  0,  1,  0]
+r'=[-sinθ,0,cosθ]
+所以：
+x′=xcosθ+zsinθ 
+y′=y 
+z′=−xsinθ+zcosθ
+
+三）绕Z轴旋转：Z坐标保持不变，xoy平面
+p'=[sinθ,-cosθ,0]
+q'=[sinθ, cosθ,0]
+r'=[0,0,1]
+所以:
+x′=xcosθ-ysinθ 
+y′=xsinθ+ycosθ 
+z′=z 
+
+
+ref:
+https://zh.wikipedia.org/wiki/%E6%97%8B%E8%BD%AC
+https://zh.wikipedia.org/wiki/%E6%97%8B%E8%BD%89%E7%BE%A4
+https://zh.wikipedia.org/wiki/%E6%97%8B%E8%BD%AC%E7%9F%A9%E9%98%B5
+*/
