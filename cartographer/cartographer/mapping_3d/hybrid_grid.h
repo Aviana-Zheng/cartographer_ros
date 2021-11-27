@@ -426,6 +426,9 @@ class HybridGridBase : public Grid<ValueType> {
   // vectors identifying cells, for this the coordinates are rounded to the next
   // multiple of the resolution.
   Eigen::Array3i GetCellIndex(const Eigen::Vector3f& point) const {
+    // .array()函数将它们转化为Array对象
+    // Array类提供了更为一般的数组功能。Array类为元素级的操作提供了有效途径，
+    // 比如点加（每个元素加值）或两个数据相应元素的点乘
     Eigen::Array3f index = point.array() / resolution_;
     return Eigen::Array3i(common::RoundToInt(index.x()),
                           common::RoundToInt(index.y()),

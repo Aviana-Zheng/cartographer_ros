@@ -147,6 +147,7 @@ void OrderedMultiQueue::Dispatch() {
     // If we haven't dispatched any data for this trajectory yet, fast forward
     // all queues of this trajectory until a common start time has been reached.
     // common_start_time即所有的“轨线id”相同的sensor都开始有data的时间点
+    // 用const关键字做任何变量，你就不能改变它的值
     const common::Time common_start_time =
         GetCommonStartTime(next_queue_key.trajectory_id);
 
@@ -200,6 +201,8 @@ common::Time OrderedMultiQueue::GetCommonStartTime(const int trajectory_id) {
   //map.emplace():Construct and insert element，根据trajectory_id构造一个map。
   //std::map<int, common::Time> common_start_time_per_trajectory_;
   //轨迹id及对应创建轨迹时间
+  // map的insert、emplace方法会忽略重复key，而不是替换,所以保存的是trajectory_id第一次查找的sensor
+  // 开始有数据的时间
   auto emplace_result = common_start_time_per_trajectory_.emplace(
       trajectory_id, common::Time::min());
   //first是插入元素指针，见下面补充,成员变量 first 是一个指向插入元素或阻止插入的元素的迭代器；

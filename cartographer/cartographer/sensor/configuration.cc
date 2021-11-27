@@ -26,7 +26,12 @@
 
 namespace cartographer {
 namespace sensor {
-
+/* assets_writer_backpack_2d.lua
+configuration.proto   Sensor定义： 
+message Sensor { 
+  string frame_id = 2; //'frame_id' of the sensor.
+ Rigid3d transform = 3; 
+} */ 
 proto::Configuration::Sensor CreateSensorConfiguration(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::Configuration::Sensor sensor;
@@ -36,6 +41,7 @@ proto::Configuration::Sensor CreateSensorConfiguration(
   return sensor;
 }
 
+// Configuration定义： message Configuration { repeated Sensor sensor = 15; } 
 proto::Configuration CreateConfiguration(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::Configuration configuration;
@@ -47,6 +53,7 @@ proto::Configuration CreateConfiguration(
   return configuration;
 }
 
+// 判断系统是否支持某一传感器id
 bool IsEnabled(const string& frame_id,
                const sensor::proto::Configuration& sensor_configuration) {
   for (const auto& sensor : sensor_configuration.sensor()) {
@@ -57,6 +64,7 @@ bool IsEnabled(const string& frame_id,
   return false;
 }
 
+//将sensor坐标转换为机器坐标。以便于跟踪计算
 transform::Rigid3d GetTransformToTracking(
     const string& frame_id,
     const sensor::proto::Configuration& sensor_configuration) {
