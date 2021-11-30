@@ -23,6 +23,15 @@
 namespace cartographer {
 namespace io {
 
+/*
+
+PointsProcessor的第二个子类(2).
+功能:记录有多少 point被输出处理
+
+数据成员:
+1),num_points_记录points数量
+2),next_下一阶段的PointsProcessor.
+*/
 // Passes through points, but keeps track of how many points it saw and output
 // that on Flush.
 class CountingPointsProcessor : public PointsProcessor {

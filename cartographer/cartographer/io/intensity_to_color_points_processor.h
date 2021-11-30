@@ -25,6 +25,21 @@
 
 namespace cartographer {
 namespace io {
+/*
+  {
+      action = "intensity_to_color",
+      min_intensity = 0.,
+      max_intensity = 4095.,
+    },
+
+PointsProcessor的第四个子类(4).
+功能:将光强度转换为color
+
+Intensity,图像亮度
+IntensityToColorPointsProcessor：处理强度到color point 的强度变换类
+成员函数执行转换:('intensity' - min ) / (max - min) * 255 
+
+*/
 
 class IntensityToColorPointsProcessor : public PointsProcessor {
  public:

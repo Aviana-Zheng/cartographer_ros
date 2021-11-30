@@ -33,7 +33,7 @@ namespace io {
 namespace {
 
 struct PixelData {
-  size_t num_occupied_cells_in_column = 0;
+  size_t num_occupied_cells_in_column = 0;  // 列中被占用的单元格数量
   double mean_r = 0.;
   double mean_g = 0.;
   double mean_b = 0.;
@@ -42,13 +42,17 @@ struct PixelData {
 using PixelDataMatrix =
     Eigen::Matrix<PixelData, Eigen::Dynamic, Eigen::Dynamic>;
 
+// (b - a) * t + a
 double Mix(const double a, const double b, const double t) {
   return a * (1. - t) + t * b;
 }
 
+//cairo回调函数，将data写入FileWriter
 cairo_status_t CairoWriteCallback(void* const closure,
                                   const unsigned char* data,
                                   const unsigned int length) {
+  // C++ 引入了四种功能不同的强制类型转换运算符以进行强制类型转换：
+  // static_cast、reinterpret_cast、const_cast 和 dynamic_cast
   if (static_cast<FileWriter*>(closure)->Write(
           reinterpret_cast<const char*>(data), length)) {
     return CAIRO_STATUS_SUCCESS;
@@ -56,6 +60,7 @@ cairo_status_t CairoWriteCallback(void* const closure,
   return CAIRO_STATUS_WRITE_ERROR;
 }
 
+// 使用cairo库将mat以png文件写入filename
 // Write 'mat' as a pleasing-to-look-at PNG into 'filename'
 void WritePng(const PixelDataMatrix& mat, FileWriter* const file_writer) {
   const int stride =
@@ -63,6 +68,8 @@ void WritePng(const PixelDataMatrix& mat, FileWriter* const file_writer) {
   CHECK_EQ(stride % 4, 0);
   std::vector<uint32_t> pixels(stride / 4 * mat.rows(), 0.);
 
+  // 参考https://blog.csdn.net/fengbingchun/article/details/77922558/
+  // std::numeric_limits
   float max = std::numeric_limits<float>::min();
   for (int y = 0; y < mat.rows(); ++y) {
     for (int x = 0; x < mat.cols(); ++x) {
@@ -78,14 +85,24 @@ void WritePng(const PixelDataMatrix& mat, FileWriter* const file_writer) {
     for (int x = 0; x < mat.cols(); ++x) {
       const PixelData& cell = mat(y, x);
       if (cell.num_occupied_cells_in_column == 0.) {
+        // <<二进制左移运算符。将一个运算对象的各二进制位全部左移若干位
+        // 左边的二进制位丢弃，右边补0
+        /*就是把四个八位二进制数（颜色的RGB三个值和透明度A）拼接成一个二进制数（32位）。
+          前八位表示透明度，往后的三个八位分别代表RGB。有点像字符串相连。
+          “<<”和“|”分别是按位左移和按位或。
+          255<<24：11111111变成111111110000...（24个0）
+          四个数移动完后，按位或运算，相同位有1就为1，全为0则为0。 
+        */
         pixels[y * stride / 4 + x] =
-            (255 << 24) | (255 << 16) | (255 << 8) | 255;
+            (255 << 24) | (255 << 16) | (255 << 8) | 255; 
+            // 初始化像素为255(透明度) 255(r) 255(g) 255(b)白色
         continue;
       }
 
       // We use a logarithmic weighting for how saturated a pixel will be. The
       // basic idea here was that walls (full height) are fully saturated, but
       // details like chairs and tables are still well visible.
+      // saturation 饱和
       const float saturation =
           std::log(cell.num_occupied_cells_in_column) / max;
       double mean_r_in_column = (cell.mean_r / 255.);
@@ -99,6 +116,12 @@ void WritePng(const PixelDataMatrix& mat, FileWriter* const file_writer) {
       const int r = common::RoundToInt(mix_r * 255.);
       const int g = common::RoundToInt(mix_g * 255.);
       const int b = common::RoundToInt(mix_b * 255.);
+      /*就是把四个八位二进制数（颜色的RGB三个值和透明度A）拼接成一个二进制数（32位）。
+        前八位表示透明度，往后的三个八位分别代表RGB。有点像字符串相连。
+        “<<”和“|”分别是按位左移和按位或。
+        255<<24：11111111变成111111110000...（24个0）
+        四个数移动完后，按位或运算，相同位有1就为1，全为0则为0。 
+      */
       pixels[y * stride / 4 + x] = (255 << 24) | (r << 16) | (g << 8) | b;
     }
   }

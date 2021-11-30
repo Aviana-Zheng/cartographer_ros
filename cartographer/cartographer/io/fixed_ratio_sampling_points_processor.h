@@ -25,6 +25,17 @@
 
 namespace cartographer {
 namespace io {
+/*
+FixedRatioSamplingPointsProcessor是PointsProcessor的第七个子类(7).
+FixedRatioSamplingPointsProcessor是采样过滤器,
+该class只让具有固定采样频率的点通过,其余全部 remove.
+
+sampling_ratio=1,即无任何操作,全通滤波.
+
+sparse_pose_graph.lua:
+ sampling_ratio = 0.3,
+
+*/
 
 // Only let a fixed 'sampling_ratio' of points through. A 'sampling_ratio' of 1.
 // makes this filter a no-op.
@@ -46,13 +57,14 @@ class FixedRatioSamplingPointsProcessor : public PointsProcessor {
   FixedRatioSamplingPointsProcessor& operator=(
       const FixedRatioSamplingPointsProcessor&) = delete;
 
+  //根据采样率采集点云，不在采样点上的全部删除。
   void Process(std::unique_ptr<PointsBatch> batch) override;
   FlushResult Flush() override;
 
  private:
-  const double sampling_ratio_;
+  const double sampling_ratio_;    //采样率
   PointsProcessor* const next_;
-  std::unique_ptr<common::FixedRatioSampler> sampler_;
+  std::unique_ptr<common::FixedRatioSampler> sampler_;  //具有固定采样率的采样函数
 };
 
 }  // namespace io

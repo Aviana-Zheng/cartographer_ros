@@ -43,6 +43,7 @@ class OutlierRemovingPointsProcessor : public PointsProcessor {
   OutlierRemovingPointsProcessor& operator=(
       const OutlierRemovingPointsProcessor&) = delete;
 
+  //删除移动的体素
   void Process(std::unique_ptr<PointsBatch> batch) override;
   FlushResult Flush() override;
 
@@ -51,7 +52,7 @@ class OutlierRemovingPointsProcessor : public PointsProcessor {
   // filter outliers in three phases each going over all data: First we compute
   // all voxels containing any hits, then we compute the rays passing through
   // each of these voxels, and finally we output all hits in voxels that are
-  // considered obstructed.
+  // considered obstructed(阻塞的).
   struct VoxelData {
     int hits = 0;
     int rays = 0;
@@ -75,10 +76,10 @@ class OutlierRemovingPointsProcessor : public PointsProcessor {
   // hit-to-ray ratio.
   void ProcessInPhaseThree(std::unique_ptr<PointsBatch> batch);
 
-  const double voxel_size_;
+  const double voxel_size_;   //体素大小
   PointsProcessor* const next_;
   State state_;
-  mapping_3d::HybridGridBase<VoxelData> voxels_;
+  mapping_3d::HybridGridBase<VoxelData> voxels_;   //包含多个体素的网格Grid
 };
 
 }  // namespace io

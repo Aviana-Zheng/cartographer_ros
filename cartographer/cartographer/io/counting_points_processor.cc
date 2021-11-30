@@ -22,9 +22,11 @@
 namespace cartographer {
 namespace io {
 
+//初始化是num是0
 CountingPointsProcessor::CountingPointsProcessor(PointsProcessor* next)
     : num_points_(0), next_(next) {}
 
+//与其他FromDictionary()函数统一写法
 std::unique_ptr<CountingPointsProcessor>
 CountingPointsProcessor::FromDictionary(
     common::LuaParameterDictionary* const dictionary,
@@ -32,11 +34,14 @@ CountingPointsProcessor::FromDictionary(
   return common::make_unique<CountingPointsProcessor>(next);
 }
 
+// 不处理points,而是将num_points_加上batch.size(),，即统计点云数据。
+// 然后直接流水线到下一PointsProcessor
 void CountingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch) {
-  num_points_ += batch->points.size();
+  num_points_ += batch->points.size();  //相加
   next_->Process(std::move(batch));
 }
 
+// 依据下一阶段的状态重置本阶段的状态。
 PointsProcessor::FlushResult CountingPointsProcessor::Flush() {
   switch (next_->Flush()) {
     case FlushResult::kFinished:
@@ -45,7 +50,7 @@ PointsProcessor::FlushResult CountingPointsProcessor::Flush() {
 
     case FlushResult::kRestartStream:
       LOG(INFO) << "Processed " << num_points_ << " and restarting stream.";
-      num_points_ = 0;
+      num_points_ = 0;     //重启,则置为0s
       return FlushResult::kRestartStream;
   }
   LOG(FATAL);

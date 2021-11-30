@@ -29,7 +29,25 @@ namespace cartographer {
 namespace io {
 
 namespace {
-
+/*
+PCD文件由文件头和数据域组成，文件头存储了点云数据的字段格式信息，如： 
+======================================== 
+# .PCD v0.7 - Point Cloud Data file format 
+VERSION 0.7 
+FIELDS x y z rgb
+SIZE 4 4 4 4 
+TYPE F F F U 
+COUNT 1 1 1 1 
+WIDTH 640 
+HEIGHT 480 
+VIEWPOINT 0 0 0 0 1 0 0 
+POINTS 307200 
+DATA binary 
+//下面是点云数据段 
+123.1 21.1 64.0
+...
+======================================== 
+*/
 // Writes the PCD header claiming 'num_points' will follow it into
 // 'output_file'.
 void WriteBinaryPcdHeader(const bool has_color, const int64 num_points,
@@ -56,11 +74,12 @@ void WriteBinaryPcdHeader(const bool has_color, const int64 num_points,
   file_writer->WriteHeader(out.data(), out.size());
 }
 
+// {x,y,z}写入文件
 void WriteBinaryPcdPointCoordinate(const Eigen::Vector3f& point,
                                    FileWriter* const file_writer) {
   char buffer[12];
   memcpy(buffer, &point[0], sizeof(float));
-  memcpy(buffer + 4, &point[1], sizeof(float));
+  memcpy(buffer + 4, &point[1], sizeof(float)); //64机,float:4位
   memcpy(buffer + 8, &point[2], sizeof(float));
   CHECK(file_writer->Write(buffer, 12));
 }
@@ -94,6 +113,7 @@ PcdWritingPointsProcessor::PcdWritingPointsProcessor(
       file_writer_(std::move(file_writer)) {}
 
 PointsProcessor::FlushResult PcdWritingPointsProcessor::Flush() {
+  //调用Flush()才写入head信息:此时才知道num_points_的值
   WriteBinaryPcdHeader(has_colors_, num_points_, file_writer_.get());
   CHECK(file_writer_->Close());
 
@@ -101,6 +121,7 @@ PointsProcessor::FlushResult PcdWritingPointsProcessor::Flush() {
     case FlushResult::kFinished:
       return FlushResult::kFinished;
 
+    //不能多次传递同一数据
     case FlushResult::kRestartStream:
       LOG(FATAL) << "PCD generation must be configured to occur after any "
                     "stages that require multiple passes.";
@@ -108,6 +129,7 @@ PointsProcessor::FlushResult PcdWritingPointsProcessor::Flush() {
   LOG(FATAL);
 }
 
+// 核心函数,按照{x,y,z}写入文件
 void PcdWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch) {
   if (batch->points.empty()) {
     next_->Process(std::move(batch));
@@ -123,7 +145,7 @@ void PcdWritingPointsProcessor::Process(std::unique_ptr<PointsBatch> batch) {
     if (!batch->colors.empty()) {
       WriteBinaryPcdPointColor(batch->colors[i], file_writer_.get());
     }
-    ++num_points_;
+    ++num_points_;   //统计处理了多少points
   }
   next_->Process(std::move(batch));
 }

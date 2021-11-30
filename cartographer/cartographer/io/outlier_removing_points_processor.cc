@@ -28,9 +28,10 @@ OutlierRemovingPointsProcessor::FromDictionary(
     common::LuaParameterDictionary* const dictionary,
     PointsProcessor* const next) {
   return common::make_unique<OutlierRemovingPointsProcessor>(
-      dictionary->GetDouble("voxel_size"), next);
+      dictionary->GetDouble("voxel_size"), next);  //构造一个对象,返回一个智能指针
 }
 
+// 构造函数,传递一个 voxel_size 和  PointsProcessor* next
 OutlierRemovingPointsProcessor::OutlierRemovingPointsProcessor(
     const double voxel_size, PointsProcessor* next)
     : voxel_size_(voxel_size),
@@ -40,6 +41,7 @@ OutlierRemovingPointsProcessor::OutlierRemovingPointsProcessor(
   LOG(INFO) << "Marking hits...";
 }
 
+// 根据3个不同的state分别处理 points
 void OutlierRemovingPointsProcessor::Process(
     std::unique_ptr<PointsBatch> points) {
   switch (state_) {
@@ -57,6 +59,7 @@ void OutlierRemovingPointsProcessor::Process(
   }
 }
 
+// 更新state,并返回 FlushResult结果
 PointsProcessor::FlushResult OutlierRemovingPointsProcessor::Flush() {
   switch (state_) {
     case State::kPhase1:
@@ -78,6 +81,7 @@ PointsProcessor::FlushResult OutlierRemovingPointsProcessor::Flush() {
   LOG(FATAL);
 }
 
+// state 1，统计光线的数量。
 void OutlierRemovingPointsProcessor::ProcessInPhaseOne(
     const PointsBatch& batch) {
   for (size_t i = 0; i < batch.points.size(); ++i) {

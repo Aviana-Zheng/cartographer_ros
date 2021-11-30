@@ -32,7 +32,7 @@ namespace {
 class ProtoStreamTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    const string tmpdir = P_tmpdir;
+    const string tmpdir = P_tmpdir;  // /tmp
     test_directory_ = tmpdir + "/proto_stream_test_XXXXXX";
     ASSERT_NE(mkdtemp(&test_directory_[0]), nullptr) << strerror(errno);
   }
@@ -43,6 +43,7 @@ class ProtoStreamTest : public ::testing::Test {
 };
 
 TEST_F(ProtoStreamTest, WriteAndReadBack) {
+  // 位置：/tmp/proto_stream_test_raENaL/test_trajectory.pbstream
   const string test_file = test_directory_ + "/test_trajectory.pbstream";
   {
     ProtoStreamWriter writer(test_file);
@@ -64,7 +65,7 @@ TEST_F(ProtoStreamTest, WriteAndReadBack) {
     mapping::proto::Trajectory trajectory;
     EXPECT_FALSE(reader.ReadProto(&trajectory));
   }
-  remove(test_file.c_str());
+  // remove(test_file.c_str());
 }
 
 }  // namespace
