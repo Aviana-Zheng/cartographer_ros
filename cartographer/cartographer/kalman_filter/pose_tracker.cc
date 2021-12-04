@@ -34,6 +34,7 @@ namespace kalman_filter {
 
 namespace {
 
+// 定义函数AddDelta,当前状态State加上delta
 PoseTracker::State AddDelta(const PoseTracker::State& state,
                             const PoseTracker::State& delta) {
   PoseTracker::State new_state = state + delta;
@@ -57,6 +58,7 @@ PoseTracker::State AddDelta(const PoseTracker::State& state,
   return new_state;
 }
 
+// 定义ComputeDelta()函数,计算State的差值delta
 PoseTracker::State ComputeDelta(const PoseTracker::State& origin,
                                 const PoseTracker::State& target) {
   PoseTracker::State delta = target - origin;
@@ -79,30 +81,40 @@ PoseTracker::State ComputeDelta(const PoseTracker::State& origin,
   return delta;
 }
 
-// Build a model matrix for the given time delta.
+// Build a model matrix for the given time delta.    
+// 滤波器预测函数 3D, 返回delta时间后的状态
+/**
+ * @brief ModelFunction
+ * 三维平面系统的预测函数　该函数被PoseTracker的Predict()函数调用
+ * 主要功能为根据系统当前时刻的状态state　预测delta_t时刻后系统的状态
+ * 这是三维平面的．
+ * @param state     系统当前时刻的状态
+ * @param delta_t   对应的delta_t
+ * @return
+ */
 PoseTracker::State ModelFunction(const PoseTracker::State& state,
                                  const double delta_t) {
   CHECK_GT(delta_t, 0.);
 
   PoseTracker::State new_state;
-  new_state[PoseTracker::kMapPositionX] =
+  new_state[PoseTracker::kMapPositionX] =     //x=x+delta * v
       state[PoseTracker::kMapPositionX] +
       delta_t * state[PoseTracker::kMapVelocityX];
-  new_state[PoseTracker::kMapPositionY] =
+  new_state[PoseTracker::kMapPositionY] =      //y=y+delta* v
       state[PoseTracker::kMapPositionY] +
       delta_t * state[PoseTracker::kMapVelocityY];
-  new_state[PoseTracker::kMapPositionZ] =
+  new_state[PoseTracker::kMapPositionZ] =       //z=z+ delta* v
       state[PoseTracker::kMapPositionZ] +
       delta_t * state[PoseTracker::kMapVelocityZ];
 
-  new_state[PoseTracker::kMapOrientationX] =
+  new_state[PoseTracker::kMapOrientationX] =    //不变
       state[PoseTracker::kMapOrientationX];
   new_state[PoseTracker::kMapOrientationY] =
       state[PoseTracker::kMapOrientationY];
   new_state[PoseTracker::kMapOrientationZ] =
       state[PoseTracker::kMapOrientationZ];
 
-  new_state[PoseTracker::kMapVelocityX] = state[PoseTracker::kMapVelocityX];
+  new_state[PoseTracker::kMapVelocityX] = state[PoseTracker::kMapVelocityX];   //不变
   new_state[PoseTracker::kMapVelocityY] = state[PoseTracker::kMapVelocityY];
   new_state[PoseTracker::kMapVelocityZ] = state[PoseTracker::kMapVelocityZ];
 
@@ -111,6 +123,7 @@ PoseTracker::State ModelFunction(const PoseTracker::State& state,
 
 }  // namespace
 
+// 定义乘法操作,C=A*B
 PoseAndCovariance operator*(const transform::Rigid3d& transform,
                             const PoseAndCovariance& pose_and_covariance) {
   GaussianDistribution<double, 6> distribution(
@@ -122,6 +135,18 @@ PoseAndCovariance operator*(const transform::Rigid3d& transform,
           (linear_transform * distribution).GetCovariance()};
 }
 
+/*
+trajectory_builder_3d.lua:
+   pose_tracker = {
+      orientation_model_variance = 5e-3,
+      position_model_variance = 0.00654766,
+      velocity_model_variance = 0.53926,
+      -- This disables gravity alignment in local SLAM.
+      imu_gravity_time_constant = 1e9,
+      imu_gravity_variance = 0,
+      num_odometry_states = 1,
+    },
+*/
 proto::PoseTrackerOptions CreatePoseTrackerOptions(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::PoseTrackerOptions options;
@@ -141,6 +166,7 @@ proto::PoseTrackerOptions CreatePoseTrackerOptions(
   return options;
 }
 
+// kalman滤波器的初始化　返回一个均值为０方差为无穷小高斯分布
 PoseTracker::Distribution PoseTracker::KalmanFilterInit() {
   State initial_state = State::Zero();
   // We are certain about the complete state at the beginning. We define the
@@ -152,19 +178,28 @@ PoseTracker::Distribution PoseTracker::KalmanFilterInit() {
 
 PoseTracker::PoseTracker(const proto::PoseTrackerOptions& options,
                          const common::Time time)
-    : options_(options),
-      time_(time),
-      kalman_filter_(KalmanFilterInit(), AddDelta, ComputeDelta),
-      imu_tracker_(options.imu_gravity_time_constant(), time),
-      odometry_state_tracker_(options.num_odometry_states()) {}
+    : options_(options),  //一些配置参数　各个方差之类的
+      time_(time),        //上一次更新的时刻
+      kalman_filter_(KalmanFilterInit(), AddDelta, ComputeDelta),   //kalman滤波器
+      imu_tracker_(options.imu_gravity_time_constant(), time),      //imu_tracker
+      //odometrystate跟踪器(缓冲区)
+      odometry_state_tracker_(options.num_odometry_states()) {}     
 
 PoseTracker::~PoseTracker() {}
 
+// 首先进行了时间的预测，然后从UKF中得到置信度
 PoseTracker::Distribution PoseTracker::GetBelief(const common::Time time) {
   Predict(time);
   return kalman_filter_.GetBelief();
 }
 
+/**
+ * @brief PoseTracker::GetPoseEstimateMeanAndCovariance
+ * 得到t时刻，ukf滤波器估计的机器人的位姿和方差
+ * @param time          对应的时间
+ * @param pose          返回的机器人位姿
+ * @param covariance    返回的机器人方差
+ */
 void PoseTracker::GetPoseEstimateMeanAndCovariance(const common::Time time,
                                                    transform::Rigid3d* pose,
                                                    PoseCovariance* covariance) {
@@ -181,11 +216,19 @@ void PoseTracker::GetPoseEstimateMeanAndCovariance(const common::Time time,
       options_.imu_gravity_variance() * Eigen::Matrix2d::Identity();
 }
 
+/**
+ * @brief PoseTracker::BuildModelNoise
+ * 构建间隔时间为t的噪声模型
+ * 该噪声模型的噪声随着时间间隔的增大而增大
+ * @param delta_t   对应的时间间隔
+ * @return
+ */
 const PoseTracker::Distribution PoseTracker::BuildModelNoise(
     const double delta_t) const {
   // Position is constant, but orientation changes.
   StateCovariance model_noise = StateCovariance::Zero();
-
+  
+  // 对角线
   model_noise.diagonal() <<
       // Position in map.
       options_.position_model_variance() * delta_t,
@@ -205,6 +248,14 @@ const PoseTracker::Distribution PoseTracker::BuildModelNoise(
   return Distribution(State::Zero(), model_noise);
 }
 
+/**
+ * @brief PoseTracker::Predict
+ * 预测time时刻的系统的状态
+ * 滤波器预测函数　因此这这个系统中　imu中的数据都是用来预测系统位置的．
+ * 因此每次imu数据的更新都需要调用这个函数来对系统状态进行新的预测
+ * 这个预测函数会根据系统指定的model_function来自动选择系统的预测方程
+ * @param time  对应的时刻
+ */
 void PoseTracker::Predict(const common::Time time) {
   imu_tracker_.Advance(time);
   CHECK_LE(time_, time);
@@ -213,6 +264,7 @@ void PoseTracker::Predict(const common::Time time) {
     return;
   }
   kalman_filter_.Predict(
+      // [ caputrue ] ( params ) opt -> ret { body; };
       [this, delta_t](const State& state) -> State {
         return ModelFunction(state, delta_t);
       },
@@ -284,6 +336,12 @@ PoseTracker::odometry_states() const {
   return odometry_state_tracker_.odometry_states();
 }
 
+/**
+ * @brief PoseTracker::RigidFromState
+ * 从机器人的位姿生成一个转换矩阵
+ * @param state 机器人的位姿
+ * @return
+ */
 transform::Rigid3d PoseTracker::RigidFromState(
     const PoseTracker::State& state) {
   return transform::Rigid3d(
@@ -294,7 +352,9 @@ transform::Rigid3d PoseTracker::RigidFromState(
           Eigen::Vector3d(state[PoseTracker::kMapOrientationX],
                           state[PoseTracker::kMapOrientationY],
                           state[PoseTracker::kMapOrientationZ])) *
-          imu_tracker_.orientation());
+          imu_tracker_.orientation()); 
+          // 预测中的state方向角，是map中yaw角度的变化
+          // imu_tracker_.orientation()是imu的重力方向，可以理解为roll和pitch
 }
 
 PoseCovariance BuildPoseCovariance(const double translational_variance,

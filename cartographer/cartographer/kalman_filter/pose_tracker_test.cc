@@ -50,6 +50,7 @@ class PoseTrackerTest : public ::testing::Test {
         )text");
     const proto::PoseTrackerOptions options =
         CreatePoseTrackerOptions(parameter_dictionary.get());
+    // 创建卡尔曼滤波跟踪器
     pose_tracker_ =
         common::make_unique<PoseTracker>(options, common::FromUniversal(1000));
   }
@@ -60,28 +61,35 @@ class PoseTrackerTest : public ::testing::Test {
 TEST_F(PoseTrackerTest, SaveAndRestore) {
   std::vector<Rigid3d> poses(3);
   std::vector<PoseCovariance> covariances(3);
+  // 0号，获取t=1500处的预测值
   pose_tracker_->GetPoseEstimateMeanAndCovariance(common::FromUniversal(1500),
                                                   &poses[0], &covariances[0]);
 
+  // 添加t=2000的测量值
   pose_tracker_->AddImuLinearAccelerationObservation(
       common::FromUniversal(2000), Eigen::Vector3d(1, 1, 9));
 
-  PoseTracker copy_of_pose_tracker = *pose_tracker_;
+  PoseTracker copy_of_pose_tracker = *pose_tracker_;   //默认copy构造函数，1号
 
   const Eigen::Vector3d observation(2, 0, 8);
+  // 添加t=3000的测量值
   pose_tracker_->AddImuLinearAccelerationObservation(
       common::FromUniversal(3000), observation);
 
+  // 1号，获取t=3500的预测值
   pose_tracker_->GetPoseEstimateMeanAndCovariance(common::FromUniversal(3500),
                                                   &poses[1], &covariances[1]);
 
+  // copy添加t=3000的测量值
   copy_of_pose_tracker.AddImuLinearAccelerationObservation(
       common::FromUniversal(3000), observation);
+  // copy，获取t=3500的测量值
   copy_of_pose_tracker.GetPoseEstimateMeanAndCovariance(
       common::FromUniversal(3500), &poses[2], &covariances[2]);
 
   EXPECT_THAT(poses[0], Not(IsNearly(poses[1], 1e-6)));
   EXPECT_FALSE((covariances[0].array() == covariances[1].array()).all());
+  // 相同的测量，导致相同的结果
   EXPECT_THAT(poses[1], IsNearly(poses[2], 1e-6));
   EXPECT_TRUE((covariances[1].array() == covariances[2].array()).all());
 }
@@ -91,6 +99,7 @@ TEST_F(PoseTrackerTest, AddImuLinearAccelerationObservation) {
 
   for (int i = 0; i < 300; ++i) {
     time += std::chrono::seconds(5);
+    // 循环300次，添加测量值
     pose_tracker_->AddImuLinearAccelerationObservation(
         time, Eigen::Vector3d(0., 0., 10.));
   }
@@ -101,6 +110,8 @@ TEST_F(PoseTrackerTest, AddImuLinearAccelerationObservation) {
     pose_tracker_->GetPoseEstimateMeanAndCovariance(time, &pose, &covariance);
     const Eigen::Quaterniond actual = Eigen::Quaterniond(pose.rotation());
     const Eigen::Quaterniond expected = Eigen::Quaterniond::Identity();
+    // expected.coeffs():0,0,0,1
+    // 预测值和真实值相等
     EXPECT_TRUE(actual.isApprox(expected, 1e-3)) << expected.coeffs() << " vs\n"
                                                  << actual.coeffs();
   }
@@ -115,10 +126,12 @@ TEST_F(PoseTrackerTest, AddImuLinearAccelerationObservation) {
 
   Rigid3d pose;
   PoseCovariance covariance;
+  // 获取预测值
   pose_tracker_->GetPoseEstimateMeanAndCovariance(time, &pose, &covariance);
   const Eigen::Quaterniond actual = Eigen::Quaterniond(pose.rotation());
   const Eigen::Quaterniond expected = Eigen::Quaterniond(
       Eigen::AngleAxisd(M_PI / 2., Eigen::Vector3d::UnitX()));
+  // 预测值与真实值比较
   EXPECT_TRUE(actual.isApprox(expected, 1e-3)) << expected.coeffs() << " vs\n"
                                                << actual.coeffs();
 }

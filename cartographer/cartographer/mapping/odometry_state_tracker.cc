@@ -36,6 +36,7 @@ OdometryStateTracker::odometry_states() const {
   return odometry_states_;
 }
 
+//添新删旧
 void OdometryStateTracker::AddOdometryState(
     const OdometryState& odometry_state) {
   odometry_states_.push_back(odometry_state);
@@ -46,6 +47,7 @@ void OdometryStateTracker::AddOdometryState(
 
 bool OdometryStateTracker::empty() const { return odometry_states_.empty(); }
 
+//返回最后一个
 const OdometryState& OdometryStateTracker::newest() const {
   return odometry_states_.back();
 }
