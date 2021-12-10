@@ -49,6 +49,7 @@ TEST(MapLimitsTest, ProtoConstructor) {
 }
 
 TEST(MapLimitsTest, ConstructAndGet) {
+  // 构造函数
   const MapLimits limits(42., Eigen::Vector2d(3., 0.), CellLimits(2, 3));
 
   const CellLimits& cell_limits = limits.cell_limits();

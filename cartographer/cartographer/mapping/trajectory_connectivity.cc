@@ -36,8 +36,12 @@ void TrajectoryConnectivity::Add(const int trajectory_id) {
 void TrajectoryConnectivity::Connect(const int trajectory_id_a,
                                      const int trajectory_id_b) {
   common::MutexLocker locker(&lock_);
+  // union即为联合，它是一种特殊的类。通过关键字union进行定义
   Union(trajectory_id_a, trajectory_id_b);
+  // minmax()函数是算法标头的库函数，用于查找最小和最大值，它接受两个值并返回一对最小和最大值，
+  // 该对中的第一个元素包含最小值，并且该对中的第二个元素包含最大值。 
   auto sorted_pair = std::minmax(trajectory_id_a, trajectory_id_b);
+  // sorted_pair 在connection_map_对应的值加1
   ++connection_map_[sorted_pair];
 }
 
@@ -62,7 +66,8 @@ int TrajectoryConnectivity::FindSet(const int trajectory_id) {
 bool TrajectoryConnectivity::TransitivelyConnected(const int trajectory_id_a,
                                                    const int trajectory_id_b) {
   common::MutexLocker locker(&lock_);
-
+  // 使用count，返回的是被查找元素的个数。如果有，返回1；
+  // 否则，返回0。注意，map中不存在相同元素，所以返回值只能是1或0。
   if (forest_.count(trajectory_id_a) == 0 ||
       forest_.count(trajectory_id_b) == 0) {
     return false;
@@ -130,3 +135,77 @@ proto::TrajectoryConnectivity::ConnectedComponent FindConnectedComponent(
 
 }  // namespace mapping
 }  // namespace cartographer
+
+/*
+https://blog.csdn.net/hou09tian/article/details/80816445
+union即为联合，它是一种特殊的类。通过关键字union进行定义，一个union可以有多个数据成员。例如
+union Token{
+   char cval;
+   int ival;
+   double dval;
+};
+
+互斥赋值
+在任意时刻，联合中只能有一个数据成员可以有值。当给联合中某个成员赋值之后，
+该联合中的其它成员就变成未定义状态了。
+
+Token token;
+ 
+token.cval = 'a';
+ 
+token.ival = 1;
+ 
+token.dval = 2.5;
+
+*/
+
+/*
+#include<string>
+#include<cstring>
+#include<iostream>
+#include<queue>
+#include<map>
+#include<algorithm>
+using namespace std;
+int main(){
+    map<string,int> test;
+    test.insert(make_pair("test1",1));//test["test1"]=1
+    test.insert(make_pair("test2",2));//test["test2"]=2
+    map<string,int>::iterator it;
+    it=test.find("test0");
+    cout<<"test0 find:";
+    if(it==test.end()){
+        cout<<"test0 not found"<<endl;
+    }
+    else{
+        cout<<it->second<<endl;
+    }
+    cout<<"test0 count:";
+    cout<<test.count("test1")<<endl;
+ 
+    cout<<"test1 find:";
+    it=test.find("test1");
+    if(it==test.end()){
+        cout<<"test1 not found"<<endl;
+    }
+    else{
+        cout<<it->second<<endl;
+    }
+    cout<<"test1 count:";
+    cout<<test.count("test1")<<endl;
+ 
+    cout<<"after inserting test1"<<endl;
+    test.insert(make_pair("test1",2));
+    cout<<"test1 find:";
+    it=test.find("test1");
+    if(it==test.end()){
+        cout<<"test1 not found"<<endl;
+    }
+    else{
+        cout<<it->second<<endl;
+    }
+    cout<<"test1 count:";
+    cout<<test.count("test1")<<endl;
+    return 0;
+}
+*/

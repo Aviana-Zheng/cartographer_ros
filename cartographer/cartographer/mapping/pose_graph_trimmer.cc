@@ -21,6 +21,7 @@
 namespace cartographer {
 namespace mapping {
 
+// 修剪多个submaps至num_submaps_to_keep_
 PureLocalizationTrimmer::PureLocalizationTrimmer(const int trajectory_id,
                                                  const int num_submaps_to_keep)
     : trajectory_id_(trajectory_id), num_submaps_to_keep_(num_submaps_to_keep) {

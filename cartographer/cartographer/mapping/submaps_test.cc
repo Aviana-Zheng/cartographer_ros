@@ -31,6 +31,7 @@ inline float Expit(float log_odds) {
   return exp_log_odds / (1.f + exp_log_odds);
 }
 
+// 只测试log计算
 TEST(SubmapsTest, LogOddsConversions) {
   EXPECT_NEAR(Expit(Logit(kMinProbability)), kMinProbability, 1e-6);
   EXPECT_NEAR(Expit(Logit(kMaxProbability)), kMaxProbability, 1e-6);

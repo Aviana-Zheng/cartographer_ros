@@ -27,6 +27,7 @@
 namespace cartographer {
 namespace mapping {
 
+// namespace，只能本文件访问以上函数。
 namespace {
 
 // A union-find structure for assigning levels to 'spans' in the trajectory
@@ -68,9 +69,12 @@ void LevelUnion(int i, int j, Levels* levels) {
 }
 
 void InsertSorted(const double val, std::vector<double>* vals) {
+  // upper_bound (ForwardIterator first, ForwardIterator last, const T& val） ，
+  // 它返回第一个大于val的迭代器
   vals->insert(std::upper_bound(vals->begin(), vals->end(), val), val);
 }
 
+// 中位数
 double Median(const std::vector<double>& sorted) {
   CHECK(!sorted.empty());
   return sorted.at(sorted.size() / 2);
@@ -102,6 +106,7 @@ double SpanLength(const proto::Trajectory& trajectory, const Span& span) {
     const auto a =
         transform::ToEigen(trajectory.node(i - 1).pose().translation());
     const auto b = transform::ToEigen(trajectory.node(i).pose().translation());
+    //前n个元素 x.head(n)   x.head<n>() 
     length += (a - b).head<2>().norm();
   }
   return length;
@@ -120,6 +125,7 @@ void GroupSegmentsByAltitude(const proto::Trajectory& trajectory,
     for (size_t j = i + 1; j < spans.size(); ++j) {
       if (std::abs(Median(spans[i].z_values) - Median(spans[j].z_values)) <
           kMinLevelSeparationMeters) {
+        // 判断是否反复测量同一层
         LevelUnion(i, j, levels);
       }
     }
@@ -129,18 +135,22 @@ void GroupSegmentsByAltitude(const proto::Trajectory& trajectory,
 std::vector<Floor> FindFloors(const proto::Trajectory& trajectory,
                               const std::vector<Span>& spans,
                               const Levels& levels) {
+  // 每一层对应的scan， 如果反复进入同一层，会有多个span片段
   std::map<int, std::vector<Span>> level_spans;
 
   // Initialize the levels to start out with only long spans.
   for (size_t i = 0; i < spans.size(); ++i) {
     const Span& span = spans[i];
+    // scan片段总位移大于25m
     if (!IsShort(trajectory, span)) {
+      // 如果反复进入同一层，会有多个span片段
       level_spans[LevelFind(i, levels)].push_back(span);
     }
   }
 
   for (size_t i = 0; i < spans.size(); ++i) {
     const Span& span = spans[i];
+    // scan片段总位移大于25m上面已经处理过，此处处理小于25m的片段
     if (!IsShort(trajectory, span)) {
       continue;
     }
@@ -155,6 +165,7 @@ std::vector<Floor> FindFloors(const proto::Trajectory& trajectory,
 
     // Otherwise, add this short piece to the level before and after it. It is
     // likely some intermediate level on stairs.
+    // 楼梯等地方的过渡片段
     size_t index = i - 1;
     if (index < spans.size()) {
       level_spans[LevelFind(index, levels)].push_back(span);
@@ -173,6 +184,7 @@ std::vector<Floor> FindFloors(const proto::Trajectory& trajectory,
     }
 
     std::vector<double> z_values;
+    // 对std::vector<Span>进行排序，先采集的点云，在前
     std::sort(level.second.begin(), level.second.end());
     floors.emplace_back();
     for (const auto& span : level.second) {
@@ -180,10 +192,14 @@ std::vector<Floor> FindFloors(const proto::Trajectory& trajectory,
         // To figure out the median height of this floor, we only care for the
         // long pieces that are guaranteed to be in the structure. This is a
         // heuristic to leave out intermediate (short) levels.
+        // 启发式搜索，利用已知信息丢弃小于25m的scan片段(认为是楼梯等过渡阶段)
+        // 将对应同一楼层的的高度值拼接起来，不要楼梯等部分的
         z_values.insert(z_values.end(), span.z_values.begin(),
                         span.z_values.end());
       }
-      floors.back().timespans.push_back(Timespan{
+      floors.back().timespans.push_back(Timespan{ 
+          // 已对std::vector<Span>进行排序，先采集的点云，在前
+          // 依次放入scan片段对应的时间段
           common::FromUniversal(trajectory.node(span.start_index).timestamp()),
           common::FromUniversal(
               trajectory.node(span.end_index - 1).timestamp())});
@@ -198,15 +214,19 @@ std::vector<Floor> FindFloors(const proto::Trajectory& trajectory,
 
 std::vector<Floor> DetectFloors(const proto::Trajectory& trajectory) {
   const std::vector<Span> spans = SliceByAltitudeChange(trajectory);
+  // 判断是否反复测量同一层  levels，联通区域
   Levels levels;
   for (size_t i = 0; i < spans.size(); ++i) {
     levels[i] = i;
   }
+  // 判断是否反复测量同一层
   GroupSegmentsByAltitude(trajectory, spans, &levels);
 
   std::vector<Floor> floors = FindFloors(trajectory, spans, levels);
+  // 按照楼层高度进行排序，楼层低的在前
   std::sort(floors.begin(), floors.end(),
             [](const Floor& a, const Floor& b) { return a.z < b.z; });
+  // 返回楼层(包含每一层对应的多个扫描)
   return floors;
 }
 

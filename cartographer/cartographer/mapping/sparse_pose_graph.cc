@@ -23,7 +23,7 @@
 
 namespace cartographer {
 namespace mapping {
-
+// proto
 proto::SparsePoseGraph::Constraint::Tag ToProto(
     const SparsePoseGraph::Constraint::Tag& tag) {
   switch (tag) {

@@ -43,11 +43,14 @@ TEST(XYIndexTest, XYIndexRangeIterator) {
   const Eigen::Array2i min(1, 2);
   const Eigen::Array2i max(3, 4);
   XYIndexRangeIterator it(min, max);
+  // .all逐个元素进行对比，有一个不相等就返回false
   EXPECT_TRUE((min == *it.begin()).all()) << *it.begin();
   EXPECT_TRUE((Eigen::Array2i(1, 5) == *it.end()).all()) << *it.end();
   EXPECT_TRUE((min == *it).all()) << *it;
   int num_indices = 0;
   for (const Eigen::Array2i& xy_index : XYIndexRangeIterator(min, max)) {
+    //  12  22  32  13 23 33 14 24 34
+    // 先行后列
     LOG(INFO) << xy_index;
     EXPECT_TRUE((xy_index >= min).all());
     EXPECT_TRUE((xy_index <= max).all());

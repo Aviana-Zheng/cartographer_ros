@@ -24,7 +24,7 @@
 namespace cartographer {
 namespace mapping {
 namespace {
-
+// 实现class Trimmable 
 class FakePoseGraph : public Trimmable {
  public:
   ~FakePoseGraph() override {}

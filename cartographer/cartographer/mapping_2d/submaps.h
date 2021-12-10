@@ -41,6 +41,17 @@ ProbabilityGrid ComputeCroppedProbabilityGrid(
 proto::SubmapsOptions CreateSubmapsOptions(
     common::LuaParameterDictionary* parameter_dictionary);
 
+
+/*
+一个独立的子图,在局部slam frame中有一个local_pose,
+追踪有多少range data 添加到其中.并设置finished_probability_grid用于闭环检查
+
+数据成员有
+1,local_pose                 位姿
+2,num_range_data             已经插入的测量数据数量
+3,finished_probability_grid  完成建图的概率网格
+
+*/
 class Submap : public mapping::Submap {
  public:
   Submap(const MapLimits& limits, const Eigen::Vector2f& origin);
@@ -59,7 +70,7 @@ class Submap : public mapping::Submap {
   void Finish();
 
  private:
-  ProbabilityGrid probability_grid_;
+  ProbabilityGrid probability_grid_;   //当子图不再变化时，指向该子图的概率分布网格。
   bool finished_ = false;
 };
 

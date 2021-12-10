@@ -35,6 +35,39 @@
 namespace cartographer {
 namespace mapping {
 
+//backpack_3d.lua/revo_lds.lua/taurob_tracker.lua
+/*
+include "map_builder.lua"
+include "trajectory_builder.lua"
+options = {
+  map_builder = MAP_BUILDER,
+  trajectory_builder = TRAJECTORY_BUILDER,
+  map_frame = "map",
+  tracking_frame = "base_link",
+  published_frame = "base_link",
+  odom_frame = "odom",
+  provide_odom_frame = true,
+  use_odometry = false,
+  use_laser_scan = false,
+  use_multi_echo_laser_scan = false,
+  num_point_clouds = 2,
+  lookup_transform_timeout_sec = 0.2,
+  submap_publish_period_sec = 0.3,
+  pose_publish_period_sec = 5e-3,
+}
+TRAJECTORY_BUILDER_3D.scans_per_accumulation = 160
+MAP_BUILDER.use_trajectory_builder_3d = true
+MAP_BUILDER.num_background_threads = 7
+MAP_BUILDER.sparse_pose_graph.optimization_problem.huber_scale = 5e2
+MAP_BUILDER.sparse_pose_graph.optimize_every_n_scans = 320
+MAP_BUILDER.sparse_pose_graph.constraint_builder.sampling_ratio = 0.03
+MAP_BUILDER.sparse_pose_graph.optimization_problem.ceres_solver_options.max_num_iterations = 10
+-- Reuse the coarser 3D voxel filter to speed up the computation of loop closure
+-- constraints.
+MAP_BUILDER.sparse_pose_graph.constraint_builder.adaptive_voxel_filter = TRAJECTORY_BUILDER_3D.high_resolution_adaptive_voxel_filter
+MAP_BUILDER.sparse_pose_graph.constraint_builder.min_score = 0.62
+return options
+*/
 proto::MapBuilderOptions CreateMapBuilderOptions(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::MapBuilderOptions options;
@@ -67,6 +100,7 @@ MapBuilder::MapBuilder(const proto::MapBuilderOptions& options)
 
 MapBuilder::~MapBuilder() {}
 
+// 根据传感器id和options新建一个轨迹线，返回轨迹线的索引
 int MapBuilder::AddTrajectoryBuilder(
     const std::unordered_set<string>& expected_sensor_ids,
     const proto::TrajectoryBuilderOptions& trajectory_options) {
@@ -74,6 +108,7 @@ int MapBuilder::AddTrajectoryBuilder(
   if (options_.use_trajectory_builder_3d()) {
     CHECK(trajectory_options.has_trajectory_builder_3d_options());
     trajectory_builders_.push_back(
+      // class CollatedTrajectoryBuilder : public TrajectoryBuilder
         common::make_unique<CollatedTrajectoryBuilder>(
             &sensor_collator_, trajectory_id, expected_sensor_ids,
             common::make_unique<mapping_3d::GlobalTrajectoryBuilder>(
@@ -91,19 +126,26 @@ int MapBuilder::AddTrajectoryBuilder(
   return trajectory_id;
 }
 
+// 根据轨迹id返回指向该轨迹的TrajectoryBuilder对象指针。
 TrajectoryBuilder* MapBuilder::GetTrajectoryBuilder(
     const int trajectory_id) const {
+  // const int trajectory_id = trajectory_builders_.size();
+  // 根据传感器id和options新建一个轨迹线，返回轨迹线的索引
+  // vector的第几个就是第几条轨迹线
   return trajectory_builders_.at(trajectory_id).get();
 }
 
+// 标记该轨迹已完成data采集，后续不再接收data
 void MapBuilder::FinishTrajectory(const int trajectory_id) {
   sensor_collator_.FinishTrajectory(trajectory_id);
 }
 
+// 阻塞的轨迹，常见于该条轨迹上的传感器迟迟不提交data。
 int MapBuilder::GetBlockingTrajectoryId() const {
   return sensor_collator_.GetBlockingTrajectoryId();
 }
 
+// 把轨迹id和子图索引对应的submap，序列化到文件
 string MapBuilder::SubmapToProto(const mapping::SubmapId& submap_id,
                                  proto::SubmapQuery::Response* const response) {
   if (submap_id.trajectory_id < 0 ||
@@ -132,6 +174,7 @@ string MapBuilder::SubmapToProto(const mapping::SubmapId& submap_id,
   return "";
 }
 
+// 在建图的轨迹数量
 int MapBuilder::num_trajectory_builders() const {
   return trajectory_builders_.size();
 }

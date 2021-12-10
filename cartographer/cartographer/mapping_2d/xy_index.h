@@ -52,10 +52,13 @@ inline proto::CellLimits ToProto(const CellLimits& cell_limits) {
 }
 
 // Iterates in row-major order through a range of xy-indices.
+// std::input_iterator_tag 一个类，提供返回类型的iterator_category代表输入迭代器的函数
 class XYIndexRangeIterator
     : public std::iterator<std::input_iterator_tag, Eigen::Array2i> {
  public:
   // Constructs a new iterator for the specified range.
+  // Eigen::Array2i 二位的整形数组
+  // 这个就是为栅格地图建索引的
   XYIndexRangeIterator(const Eigen::Array2i& min_xy_index,
                        const Eigen::Array2i& max_xy_index)
       : min_xy_index_(min_xy_index),
@@ -73,6 +76,8 @@ class XYIndexRangeIterator
     // be avoided in production. We have unit tests that exercise this check
     // in debug mode.
     DCHECK(*this != end());
+    //  12  22  32  13 23 33 14 24 34
+    // 先行后列
     if (xy_index_.x() < max_xy_index_.x()) {
       ++xy_index_.x();
     } else {
@@ -85,6 +90,7 @@ class XYIndexRangeIterator
   Eigen::Array2i& operator*() { return xy_index_; }
 
   bool operator==(const XYIndexRangeIterator& other) const {
+    // .all逐个元素进行对比，有一个不相等就返回false
     return (xy_index_ == other.xy_index_).all();
   }
 

@@ -134,6 +134,23 @@ class RateTimer {
   // Returns the average and standard deviation of the deltas.
   string DeltasDebugString() const {
     const auto deltas = ComputeDeltasInSeconds();
+    /*
+    累计范围内的值,  文末
+    accumulate (InputIterator first, InputIterator last, T init, BinaryOperation binary_op);
+    参数:
+    first,last:将迭代器输入到序列中的初始位置和最终位置。使用的范围是[first,last)，
+    它包含所有的元件第一和最后一个，包括由指向的元件第一但不被指向的元素最后。
+
+    init:累加器的初始值。
+
+    binary_op
+    myfunction (int x, int y)；这样的函数时，init传入x，前面的范围和传入y，最后返回函数值。
+    std::minus()；返回init-范围和
+    int operator()(int x, int y)；和函数那个一样效果。
+
+    返回值
+    累积init：和范围内所有元素的结果[first,last)。
+    */
     const double sum = std::accumulate(deltas.begin(), deltas.end(), 0.);
     const double mean = sum / deltas.size();
 
@@ -184,4 +201,38 @@ high_resolution_clock：
 
 std::chrono::time_point   表示一个具体时间，如上个世纪80年代、
 你的生日、今天下午、火车出发时间等等
+*/
+
+/*
+#include <iostream>     // std::cout
+#include <functional>   // std::minus
+#include <numeric>      // std::accumulate
+
+int myfunction (int x, int y) {return x+2*y;}
+struct myclass {
+    int operator()(int x, int y) {return x+3*y;}
+} myobject;
+
+int main () {
+  int init = 100;
+  int numbers[] = {10,20,30};
+
+  std::cout << "using default accumulate: ";
+  std::cout << std::accumulate(numbers,numbers+3,init);
+  std::cout << '\n';
+
+  std::cout << "using functional's minus: ";
+  std::cout << std::accumulate (numbers, numbers+3, init, std::minus<int>());
+  std::cout << '\n';
+
+  std::cout << "using custom function: ";
+  std::cout << std::accumulate (numbers, numbers+3, init, myfunction);
+  std::cout << '\n';
+
+  std::cout << "using custom object: ";
+  std::cout << std::accumulate (numbers, numbers+3, init, myobject);
+  std::cout << '\n';
+
+  return 0;
+}
 */

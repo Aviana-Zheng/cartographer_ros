@@ -24,6 +24,7 @@ namespace mapping {
 
 // Implemented by the pose graph to provide thread-safe access to functions for
 // trimming the graph.
+// mapping2d中sparse_pose_graph.h实现
 class Trimmable {
  public:
   virtual ~Trimmable() {}
@@ -49,6 +50,7 @@ class PoseGraphTrimmer {
 
 // Keeps the last 'num_submaps_to_keep' of the trajectory with 'trajectory_id'
 // to implement localization without mapping.
+// 修剪多个submaps至num_submaps_to_keep_
 class PureLocalizationTrimmer : public PoseGraphTrimmer {
  public:
   PureLocalizationTrimmer(int trajectory_id, int num_submaps_to_keep);

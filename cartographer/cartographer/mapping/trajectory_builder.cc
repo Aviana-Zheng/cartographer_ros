@@ -25,6 +25,7 @@ namespace mapping {
 proto::TrajectoryBuilderOptions CreateTrajectoryBuilderOptions(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::TrajectoryBuilderOptions options;
+  // 分为2d和3d
   *options.mutable_trajectory_builder_2d_options() =
       mapping_2d::CreateLocalTrajectoryBuilderOptions(
           parameter_dictionary->GetDictionary("trajectory_builder_2d").get());

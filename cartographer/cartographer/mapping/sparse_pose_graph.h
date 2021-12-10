@@ -35,17 +35,24 @@
 namespace cartographer {
 namespace mapping {
 
+// 根据sparse_pose_graph.lua文件设置option
 proto::SparsePoseGraphOptions CreateSparsePoseGraphOptions(
     common::LuaParameterDictionary* const parameter_dictionary);
 
+/*
+SparsePoseGraph:稀疏位姿图模型,虚基类,提供多个抽象接口,不可拷贝/赋值
+有一个Constraint的内部类,
+稀疏图用于闭环检测
+*/
 class SparsePoseGraph {
  public:
   // A "constraint" as in the paper by Konolige, Kurt, et al. "Efficient sparse
   // pose adjustment for 2d mapping." Intelligent Robots and Systems (IROS),
   // 2010 IEEE/RSJ International Conference on (pp. 22--29). IEEE, 2010.
+  // 约束 
   struct Constraint {
     struct Pose {
-      transform::Rigid3d zbar_ij;
+      transform::Rigid3d zbar_ij;  //paper-公式(2)
       double translation_weight;
       double rotation_weight;
     };
@@ -77,10 +84,10 @@ class SparsePoseGraph {
   // included in the pose graph.
   virtual void AddTrimmer(std::unique_ptr<PoseGraphTrimmer> trimmer) = 0;
 
-  // Computes optimized poses.
+  // Computes optimized poses. 计算优化后的位姿估计
   virtual void RunFinalOptimization() = 0;
 
-  // Gets the current trajectory clusters.
+  // Gets the current trajectory clusters.获取已连接的轨迹集合
   virtual std::vector<std::vector<int>> GetConnectedTrajectories() = 0;
 
   // Return the number of submaps for the given 'trajectory_id'.
@@ -96,15 +103,18 @@ class SparsePoseGraph {
   // Returns the transform converting data in the local map frame (i.e. the
   // continuous, non-loop-closed frame) into the global map frame (i.e. the
   // discontinuous, loop-closed frame).
+  // 获取局部图的3D变换
   virtual transform::Rigid3d GetLocalToGlobalTransform(int trajectory_id) = 0;
 
   // Returns the current optimized trajectories.
+  // 优化后的轨迹线
   virtual std::vector<std::vector<TrajectoryNode>> GetTrajectoryNodes() = 0;
 
   // Serializes the constraints and trajectories.
   proto::SparsePoseGraph ToProto();
 
   // Returns the collection of constraints.
+  // 获取约束集
   virtual std::vector<Constraint> constraints() = 0;
 };
 

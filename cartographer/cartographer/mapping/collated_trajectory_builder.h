@@ -34,6 +34,26 @@
 namespace cartographer {
 namespace mapping {
 
+/*
+CollatedTrajectoryBuilder类继承自TrajectoryBuilder,
+作用：使用Collator处理从传感器收集而来的数据.
+并传递给GlobalTrajectoryBuilderInterface。
+
+数据成员包括
+
+sensor::Collator* const sensor_collator_; 传感器收集类实例
+const int trajectory_id_;                 轨迹id
+std::unique_ptr<GlobalTrajectoryBuilderInterface> wrapped_trajectory_builder_;全局的建图接口
+
+std::chrono::steady_clock::time_point last_logging_time_; 上一次传递数据时间
+std::map<string, common::RateTimer<>> rate_timers_;频率
+
+成员函数,重写了父类的接口
+submaps()用于建立子图
+pose_estimate() 位姿估计
+AddSensorData() 添加传感器数据
+HandleCollatedSensorData() 处理收集得来的传感器数据
+*/
 // Handles collating sensor data using a sensor::Collator, then passing it on to
 // a mapping::GlobalTrajectoryBuilderInterface which is common for 2D and 3D.
 class CollatedTrajectoryBuilder : public TrajectoryBuilder {

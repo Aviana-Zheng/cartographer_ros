@@ -44,6 +44,13 @@ namespace mapping {
 proto::MapBuilderOptions CreateMapBuilderOptions(
     common::LuaParameterDictionary* const parameter_dictionary);
 
+/*
+MapBuilder类,建图,不可拷贝/赋值
+MapBuilder类和TrajectoryBuilder类即真正的开始重建局部子图submaps,
+并且采集稀疏位姿图用于闭环检测。
+1)构造函数根据options初始化数据成员，包括线程数量和sparse_pose_graph_options。
+Wires up（为…） 接通电源;
+*/
 // Wires up the complete SLAM stack with TrajectoryBuilders (for local submaps)
 // and a SparsePoseGraph for loop closure.
 class MapBuilder {
@@ -55,41 +62,48 @@ class MapBuilder {
   MapBuilder& operator=(const MapBuilder&) = delete;
 
   // Create a new trajectory and return its index.
+  // 根据传感器id和options新建一个轨迹线，返回轨迹线的索引
   int AddTrajectoryBuilder(
       const std::unordered_set<string>& expected_sensor_ids,
       const proto::TrajectoryBuilderOptions& trajectory_options);
 
   // Returns the TrajectoryBuilder corresponding to the specified
   // 'trajectory_id'.
+  // 根据轨迹id返回指向该轨迹的TrajectoryBuilder对象指针。
   mapping::TrajectoryBuilder* GetTrajectoryBuilder(int trajectory_id) const;
 
   // Marks the TrajectoryBuilder corresponding to 'trajectory_id' as finished,
   // i.e. no further sensor data is expected.
+  // 标记该轨迹已完成data采集，后续不再接收data
   void FinishTrajectory(int trajectory_id);
 
   // Must only be called if at least one unfinished trajectory exists. Returns
   // the ID of the trajectory that needs more data before the MapBuilder is
   // unblocked.
+  // 阻塞的轨迹，常见于该条轨迹上的传感器迟迟不提交data。
   int GetBlockingTrajectoryId() const;
 
   // Fills the SubmapQuery::Response corresponding to 'submap_id'. Returns an
   // error string on failure, or an empty string on success.
+  // 把轨迹id和子图索引对应的submap，序列化到文件
   string SubmapToProto(const SubmapId& submap_id,
                        proto::SubmapQuery::Response* response);
-
+  
+  // 在建图的轨迹数量
   int num_trajectory_builders() const;
 
   mapping::SparsePoseGraph* sparse_pose_graph();
 
  private:
-  const proto::MapBuilderOptions options_;
-  common::ThreadPool thread_pool_;
+  const proto::MapBuilderOptions options_;   // 建图选项
+  common::ThreadPool thread_pool_;    //线程数量，不可变。
 
-  std::unique_ptr<mapping_2d::SparsePoseGraph> sparse_pose_graph_2d_;
-  std::unique_ptr<mapping_3d::SparsePoseGraph> sparse_pose_graph_3d_;
-  mapping::SparsePoseGraph* sparse_pose_graph_;
+  std::unique_ptr<mapping_2d::SparsePoseGraph> sparse_pose_graph_2d_;    //稀疏2D图
+  std::unique_ptr<mapping_3d::SparsePoseGraph> sparse_pose_graph_3d_;    //稀疏3D图
+  mapping::SparsePoseGraph* sparse_pose_graph_;   //稀疏位姿
 
-  sensor::Collator sensor_collator_;
+  sensor::Collator sensor_collator_;    //收集传感器采集的数据 
+  //轨迹线集合
   std::vector<std::unique_ptr<mapping::TrajectoryBuilder>> trajectory_builders_;
 };
 

@@ -68,43 +68,48 @@ TEST(ProbabilityGridTest, ApplyOdds) {
   EXPECT_TRUE(limits.Contains(Eigen::Array2i(0, 1)));
   EXPECT_TRUE(limits.Contains(Eigen::Array2i(1, 0)));
   EXPECT_TRUE(limits.Contains(Eigen::Array2i(1, 1)));
+  // 初始化为cells_(limits_.cell_limits().num_x_cells * limits_.cell_limits().num_y_cells, mapping::kUnknownProbabilityValue)
   EXPECT_FALSE(probability_grid.IsKnown(Eigen::Array2i(0, 0)));
   EXPECT_FALSE(probability_grid.IsKnown(Eigen::Array2i(0, 1)));
   EXPECT_FALSE(probability_grid.IsKnown(Eigen::Array2i(1, 0)));
   EXPECT_FALSE(probability_grid.IsKnown(Eigen::Array2i(1, 1)));
 
-  probability_grid.SetProbability(Eigen::Array2i(1, 0), 0.5);
+  probability_grid.SetProbability(Eigen::Array2i(1, 0), 0.5); // 16384
 
   probability_grid.StartUpdate();
   probability_grid.ApplyLookupTable(
       Eigen::Array2i(1, 0),
-      mapping::ComputeLookupTableToApplyOdds(mapping::Odds(0.9)));
+      mapping::ComputeLookupTableToApplyOdds(mapping::Odds(0.9)));   // 65535  概率值= 65535 - 32768 = 32767
   EXPECT_GT(probability_grid.GetProbability(Eigen::Array2i(1, 0)), 0.5);
 
   probability_grid.StartUpdate();
-  probability_grid.SetProbability(Eigen::Array2i(0, 1), 0.5);
+  probability_grid.SetProbability(Eigen::Array2i(0, 1), 0.5);   // 16384
 
   probability_grid.StartUpdate();
   probability_grid.ApplyLookupTable(
       Eigen::Array2i(0, 1),
       mapping::ComputeLookupTableToApplyOdds(mapping::Odds(0.1)));
-  EXPECT_LT(probability_grid.GetProbability(Eigen::Array2i(0, 1)), 0.5);
+  EXPECT_LT(probability_grid.GetProbability(Eigen::Array2i(0, 1)), 0.5);  // 32769  概率值= 32769 - 32768 = 1
 
   // Tests adding odds to an unknown cell.
   probability_grid.StartUpdate();
   probability_grid.ApplyLookupTable(
       Eigen::Array2i(1, 1),
       mapping::ComputeLookupTableToApplyOdds(mapping::Odds(0.42)));
+  // 之前该点是unknown状态 直接使用观测的概率值
+  // 0 变为 45875  概率值= 45875 - 32768 = 13107   对应0.42
   EXPECT_NEAR(probability_grid.GetProbability(Eigen::Array2i(1, 1)), 0.42,
               1e-4);
 
   // Tests that further updates are ignored if StartUpdate() isn't called.
+  // 45875 ,直接返回
   probability_grid.ApplyLookupTable(
       Eigen::Array2i(1, 1),
       mapping::ComputeLookupTableToApplyOdds(mapping::Odds(0.9)));
   EXPECT_NEAR(probability_grid.GetProbability(Eigen::Array2i(1, 1)), 0.42,
               1e-4);
   probability_grid.StartUpdate();
+  // 13107   变为 64182  概率值= 64182 - 32768 = 31414  对应0.87
   probability_grid.ApplyLookupTable(
       Eigen::Array2i(1, 1),
       mapping::ComputeLookupTableToApplyOdds(mapping::Odds(0.9)));

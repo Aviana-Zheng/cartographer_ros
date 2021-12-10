@@ -50,6 +50,8 @@ class GlobalTrajectoryBuilderInterface {
 
   virtual const PoseEstimate& pose_estimate() const = 0;
 
+  // 下面3个函数都是虚函数。
+  // 分别是添加雷达/imu/里程计的data。
   virtual void AddRangefinderData(common::Time time,
                                   const Eigen::Vector3f& origin,
                                   const sensor::PointCloud& ranges) = 0;

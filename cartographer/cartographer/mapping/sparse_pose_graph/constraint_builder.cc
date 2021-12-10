@@ -26,6 +26,7 @@ namespace cartographer {
 namespace mapping {
 namespace sparse_pose_graph {
 
+// sparse_pose_graph.lua
 proto::ConstraintBuilderOptions CreateConstraintBuilderOptions(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::ConstraintBuilderOptions options;

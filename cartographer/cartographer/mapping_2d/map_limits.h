@@ -66,8 +66,38 @@ class MapLimits {
   // Returns the index of the cell containing the point ('x', 'y') which may be
   // outside the map, i.e., negative or too large indices that will return
   // false for Contains().
+  // 世界坐标是正常的我们认识的坐标，左下角为原点，向右为x，向上为y。通过实际长度point找到cell
+  // 我们给一个真实长度，世界坐标点point (x,y)，如何得到网格坐标点cell (x,y)
+  // 其中max_表示的是地图最大范围
   Eigen::Array2i GetXYIndexOfCellContainingPoint(const double x,
                                                  const double y) const {
+    // 标准矩阵: 矩阵在数学中的定义是 m行n列的数阵
+    // 而在图形学中，有行主序和列主序两种排列方式，行主序和标准矩阵是一样的排列方式，
+    // 列主序则是竖着排列 即行主序的转置
+    // 看到左上角为栅格地图的原点，即栅格（0,0），且栅格地图是行主序
+    // 如何理解呢？可以将栅格地图理解为左上角为原点（0,0），向右为x轴，向下为y轴
+    // 而对于point点来说，坐标系是正常的如下图所示：
+    // 		          	    x^
+    //  		               |
+    //  	          	     |
+    //  		  		         |
+    //  		   		         |
+    //  		               |
+    //   <—————————————————0 
+    //   y                  
+    // 而对于栅格坐标系为：
+    //  0——————————————————> x
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  y 
+    //   	           x 
+    // 所以需要用最大范围减去点的坐标，除以分辨率
+    // 只有max_比point大二分之一分辨率的时候代表了栅格地图的原点，
+    // 而max表示了地图的最大范围，因此我推断：
+    // 返回的这个点 是 栅格的中心点，因此，栅格点(grid_point)是一个格子的中心
     // Index values are row major and the top left has Eigen::Array2i::Zero()
     // and contains (centered_max_x, centered_max_y). We need to flip and
     // rotate.

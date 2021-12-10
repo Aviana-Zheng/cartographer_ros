@@ -34,6 +34,7 @@ namespace cartographer {
 namespace mapping {
 
 // Converts the given probability to log odds.
+// 求odds(p)的log对数
 inline float Logit(float probability) {
   return std::log(probability / (1.f - probability));
 }
@@ -43,6 +44,7 @@ const float kMinLogOdds = Logit(kMinProbability);
 
 // Converts a probability to a log odds integer. 0 means unknown, [kMinLogOdds,
 // kMaxLogOdds] is mapped to [1, 255].
+// 将[0.1,0.9]映射为0-255之间的数
 inline uint8 ProbabilityToLogOddsInteger(const float probability) {
   const int value = common::RoundToInt((Logit(probability) - kMinLogOdds) *
                                        254.f / (kMaxLogOdds - kMinLogOdds)) +
@@ -56,13 +58,22 @@ inline uint8 ProbabilityToLogOddsInteger(const float probability) {
 // track of how many range data were inserted into it, and sets the
 // 'finished_probability_grid' to be used for loop closing once the map no
 // longer changes.
+/*
+一个独立的子图,在局部slam frame中有一个local_pose,
+追踪有多少range data 添加到其中.
+
+数据成员有
+1,local_pose                 位姿
+2,num_range_data             已经插入的测量数据数量
+
+*/
 class Submap {
  public:
   Submap(const transform::Rigid3d& local_pose) : local_pose_(local_pose) {}
   virtual ~Submap() {}
 
   // Local SLAM pose of this submap.
-  transform::Rigid3d local_pose() const { return local_pose_; }
+  transform::Rigid3d local_pose() const { return local_pose_; }    //子图的位姿
 
   // Number of RangeData inserted.
   int num_range_data() const { return num_range_data_; }
@@ -73,7 +84,7 @@ class Submap {
       proto::SubmapQuery::Response* response) const = 0;
 
  private:
-  const transform::Rigid3d local_pose_;
+  const transform::Rigid3d local_pose_;   //子图的位姿
 
  protected:
   // TODO(hrapp): This should be private.

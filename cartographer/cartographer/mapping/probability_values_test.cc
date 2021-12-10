@@ -23,6 +23,7 @@ namespace mapping {
 namespace {
 
 TEST(ProbabilityValuesTest, OddsConversions) {
+  // p转换为odds再转换为p
   EXPECT_NEAR(ProbabilityFromOdds(Odds(kMinProbability)), kMinProbability,
               1e-6);
   EXPECT_NEAR(ProbabilityFromOdds(Odds(kMaxProbability)), kMaxProbability,
