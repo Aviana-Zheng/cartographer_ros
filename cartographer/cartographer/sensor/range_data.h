@@ -30,6 +30,9 @@ RangeData:
 1),原始位置,{x0,y0,z0}
 2),返回点云,{x,y,z}
 3),缺失点云,标识free space.
+
+光线从“原点”开始。 “返回”是检测到障碍物的点。 “未命中”是光线方向上未检测到返回的点，并以配置的距离插入。 
+假设“原点”和“未命中”之间是可用空间。 
 */
 
 // Rays begin at 'origin'. 'returns' are the points where obstructions were

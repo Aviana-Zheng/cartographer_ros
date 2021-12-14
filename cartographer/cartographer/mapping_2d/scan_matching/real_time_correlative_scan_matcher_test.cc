@@ -48,13 +48,14 @@ class RealTimeCorrelativeScanMatcherTest : public ::testing::Test {
       range_data_inserter_ = common::make_unique<RangeDataInserter>(
           CreateRangeDataInserterOptions(parameter_dictionary.get()));
     }
-    point_cloud_.emplace_back(0.025f, 0.175f, 0.f);
-    point_cloud_.emplace_back(-0.025f, 0.175f, 0.f);
-    point_cloud_.emplace_back(-0.075f, 0.175f, 0.f);
-    point_cloud_.emplace_back(-0.125f, 0.175f, 0.f);
-    point_cloud_.emplace_back(-0.125f, 0.125f, 0.f);
-    point_cloud_.emplace_back(-0.125f, 0.075f, 0.f);
-    point_cloud_.emplace_back(-0.125f, 0.025f, 0.f);
+    // hit点概率0.7
+    point_cloud_.emplace_back(0.025f, 0.175f, 0.f);   // 1,0
+    point_cloud_.emplace_back(-0.025f, 0.175f, 0.f);  // 1,1
+    point_cloud_.emplace_back(-0.075f, 0.175f, 0.f);  // 1,2
+    point_cloud_.emplace_back(-0.125f, 0.175f, 0.f);  // 1,3
+    point_cloud_.emplace_back(-0.125f, 0.125f, 0.f);  // 2,3
+    point_cloud_.emplace_back(-0.125f, 0.075f, 0.f);  // 3,3
+    point_cloud_.emplace_back(-0.125f, 0.025f, 0.f);  // 4,3
     probability_grid_.StartUpdate();
     range_data_inserter_->Insert(
         sensor::RangeData{Eigen::Vector3f::Zero(), point_cloud_, {}},
@@ -106,6 +107,7 @@ TEST_F(RealTimeCorrelativeScanMatcherTest,
   const std::vector<DiscreteScan> discrete_scans = DiscretizeScans(
       probability_grid_.limits(), scans, Eigen::Translation2f::Identity());
   std::vector<Candidate> candidates;
+  // y方向偏移1
   candidates.emplace_back(0, 0, 1, SearchParameters(0, 0, 0., 0.));
   real_time_correlative_scan_matcher_->ScoreCandidates(
       probability_grid_, discrete_scans, SearchParameters(0, 0, 0., 0.),

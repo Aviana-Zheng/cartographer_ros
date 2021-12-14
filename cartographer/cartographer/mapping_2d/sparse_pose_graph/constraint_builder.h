@@ -109,10 +109,13 @@ class ConstraintBuilder {
   void DeleteScanMatcher(const mapping::SubmapId& submap_id);
 
  private:
+  // 为每个子图都构建一个SubmapScanMatcher类型的扫描匹配器。
+  // 这个扫描匹配器是定义在类ConstraintBuilder2D内部的一个结构体
+  // 它有2个字段，分别记录子图的占用栅格、扫描匹配器内核
   struct SubmapScanMatcher {
-    const ProbabilityGrid* probability_grid;
+    const ProbabilityGrid* probability_grid; // 子图的占用栅格
     std::unique_ptr<scan_matching::FastCorrelativeScanMatcher>
-        fast_correlative_scan_matcher;
+        fast_correlative_scan_matcher;   // 扫描匹配器内核
   };
 
   // Either schedules the 'work_item', or if needed, schedules the scan matcher

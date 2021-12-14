@@ -27,25 +27,35 @@
 namespace cartographer {
 namespace mapping_3d {
 
+/*
+使用场景:
+在local_trajectory_build_2d中，AddRangeData函数调用AddAccumulatedRangeData函数来
+扫描匹配并插入扫描数据，AddAccumulatedRangeData函数在扫描匹配完成后，
+会调用InsertIntoSubmap函数将扫描数据插入子图，而InsertIntoSubmap函数第一步就会
+调用motion_filter_.IsSimilar(time, pose_estimate)来判断当前扫描是否能插入子图中
+*/
 proto::MotionFilterOptions CreateMotionFilterOptions(
     common::LuaParameterDictionary* parameter_dictionary);
 
 // Takes poses as input and filters them to get fewer poses.
 class MotionFilter {
  public:
+  // 完成对参数的配置
   explicit MotionFilter(const proto::MotionFilterOptions& options);
 
   // If the accumulated motion (linear, rotational, or time) is above the
   // threshold, returns false. Otherwise the relative motion is accumulated and
   // true is returned.
+  // 如果累积运动（线性、旋转或时间）高于阈值，则返回 false。 否则累积相对运动并返回 true。
+  // 判断当前位姿与上一时刻更新时的位姿是否有足够的空间和时间距离
   bool IsSimilar(common::Time time, const transform::Rigid3d& pose);
 
  private:
-  const proto::MotionFilterOptions options_;
-  int num_total_ = 0;
-  int num_different_ = 0;
-  common::Time last_time_;
-  transform::Rigid3d last_pose_;
+  const proto::MotionFilterOptions options_; // MotionFilter相关的参数配置
+  int num_total_ = 0;  // 当前轨迹中进入判断的所有扫描数
+  int num_different_ = 0;   // 参与更新的扫描数
+  common::Time last_time_;  // 上一次更新的时间
+  transform::Rigid3d last_pose_;   // 上一次更新的位姿
 };
 
 }  // namespace mapping_3d

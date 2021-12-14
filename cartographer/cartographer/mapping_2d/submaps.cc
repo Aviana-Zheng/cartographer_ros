@@ -36,6 +36,7 @@ ProbabilityGrid ComputeCroppedProbabilityGrid(
   CellLimits limits;
   probability_grid.ComputeCroppedLimits(&offset, &limits);
   const double resolution = probability_grid.limits().resolution();
+  // 相当于做了一个平移变换，将submaps地图中的最小值平移至原点
   const Eigen::Vector2d max =
       probability_grid.limits().max() -
       resolution * Eigen::Vector2d(offset.y(), offset.x());
@@ -87,6 +88,12 @@ void Submap::ToResponseProto(
       // zero, and use 'alpha' to subtract. This is only correct when the pixel
       // is currently white, so walls will look too gray. This should be hard to
       // detect visually for the user, though.
+      /*
+      我们想添加“delta”，但使用值和 alpha 是不可能的。 我们使用预乘 alpha，
+      因此当 'delta' 为正时，我们可以通过将 'alpha' 设置为零来添加它。 
+      如果它是负数，我们将 'value' 设置为零，并使用 'alpha' 进行减法。 
+      这仅在像素当前为白色时才正确，因此墙壁看起来太灰。 但是，这对于用户来说应该很难在视觉上检测到。 
+      */
       const int delta =
           128 - mapping::ProbabilityToLogOddsInteger(
                     probability_grid_.GetProbability(xy_index + offset));
@@ -124,6 +131,7 @@ void Submap::InsertRangeData(const sensor::RangeData& range_data,
 
 void Submap::Finish() {
   CHECK(!finished_);
+  // 计算裁剪栅格地图
   probability_grid_ = ComputeCroppedProbabilityGrid(probability_grid_);
   finished_ = true;
 }
@@ -138,8 +146,10 @@ ActiveSubmaps::ActiveSubmaps(const proto::SubmapsOptions& options)
 
 void ActiveSubmaps::InsertRangeData(const sensor::RangeData& range_data) {
   for (auto& submap : submaps_) {
+    //两个submap全部插入新的range_data，表明old的submap2d包含了所有new submap2d内容
     submap->InsertRangeData(range_data, range_data_inserter_);
   }
+  // 当range data 数量达到配置的值时，将新建个submap
   if (submaps_.back()->num_range_data() == options_.num_range_data()) {
     AddSubmap(range_data.origin.head<2>());
   }
@@ -155,20 +165,27 @@ void ActiveSubmaps::FinishSubmap() {
   Submap* submap = submaps_.front().get();
   submap->Finish();
   ++matching_submap_index_;
+  // erase函数可以用于删除vector容器中的一个或者一段元素
   submaps_.erase(submaps_.begin());
 }
 
+// 添加一个新的submap
 void ActiveSubmaps::AddSubmap(const Eigen::Vector2f& origin) {
+  // 如果已经存在两个submap，即old和new均存在
+  // 则剔除old的submap2d
   if (submaps_.size() > 1) {
     // This will crop the finished Submap before inserting a new Submap to
     // reduce peak memory usage a bit.
+    // 新建时，如果submap的个数为2,则需要先将第一个submap设置成finish，并从active submap中删掉
     FinishSubmap();
   }
+  // 新建一个active submap
   const int num_cells_per_dimension =
       common::RoundToInt(2. * options_.half_length() / options_.resolution()) +
       1;
   submaps_.push_back(common::make_unique<Submap>(
       MapLimits(options_.resolution(),
+                // 以origin为中点的地图
                 origin.cast<double>() +
                     options_.half_length() * Eigen::Vector2d::Ones(),
                 CellLimits(num_cells_per_dimension, num_cells_per_dimension)),

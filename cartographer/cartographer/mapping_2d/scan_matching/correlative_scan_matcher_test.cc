@@ -24,6 +24,7 @@ namespace mapping_2d {
 namespace scan_matching {
 namespace {
 
+// test
 TEST(SearchParameters, Construction) {
   const SearchParameters search_parameters(4, 5, 0.03, 0.05);
   EXPECT_EQ(5, search_parameters.num_angular_perturbations);

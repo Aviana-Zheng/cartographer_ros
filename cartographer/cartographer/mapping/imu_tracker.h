@@ -38,7 +38,7 @@ ImuTracker
 // accelerations from an IMU. Because averaged linear acceleration (assuming
 // slow movement) is a direct measurement of gravity, roll/pitch does not drift,
 // though yaw does.  
-//x,y轴不会drift漂移。z轴可能会产生漂移。(有累计误差)
+// x,y轴不会drift漂移。z轴可能会产生漂移。(有累计误差)
 class ImuTracker {
  public:
   ImuTracker(double imu_gravity_time_constant, common::Time time);

@@ -30,6 +30,8 @@ class TranslationDeltaCostFunctor {
  public:
   // Constructs a new TranslationDeltaCostFunctor from the given
   // 'initial_pose_estimate' (x, y, theta).
+  // scaling_factor 权重options_.translation_weight()
+  // initial_pose_estimate 上一个位移previous_pose
   explicit TranslationDeltaCostFunctor(
       const double scaling_factor,
       const transform::Rigid2d& initial_pose_estimate)
@@ -43,6 +45,7 @@ class TranslationDeltaCostFunctor {
 
   template <typename T>
   bool operator()(const T* const pose, T* residual) const {
+    // 权重乘以优化后的位移插值
     residual[0] = scaling_factor_ * (pose[0] - x_);
     residual[1] = scaling_factor_ * (pose[1] - y_);
     return true;

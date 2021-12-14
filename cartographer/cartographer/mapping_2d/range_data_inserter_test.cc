@@ -71,6 +71,7 @@ TEST_F(RangeDataInserterTest, InsertPointCloud) {
   EXPECT_EQ(5, cell_limits.num_y_cells);
 
   enum class State { UNKNOWN, MISS, HIT };
+  // map地图
   State expected_states[5][5] = {
       {State::UNKNOWN, State::UNKNOWN, State::UNKNOWN, State::UNKNOWN,
        State::UNKNOWN},

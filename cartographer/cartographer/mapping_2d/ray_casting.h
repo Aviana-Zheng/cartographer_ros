@@ -30,6 +30,8 @@ namespace mapping_2d {
 
 // For each ray in 'range_data', calls 'hit_visitor' and 'miss_visitor' on the
 // appropriate cells. Hits are handled before misses.
+// 对于“范围数据”中的每条射线，在适当的单元格上调用“命中访问者”和“错过访问者”。 
+// 在未命中之前处理命中。 
 void CastRays(const sensor::RangeData& range_data, const MapLimits& limits,
               const std::function<void(const Eigen::Array2i&)>& hit_visitor,
               const std::function<void(const Eigen::Array2i&)>& miss_visitor);

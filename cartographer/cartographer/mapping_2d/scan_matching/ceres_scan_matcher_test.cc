@@ -36,10 +36,11 @@ class CeresScanMatcherTest : public ::testing::Test {
   CeresScanMatcherTest()
       : probability_grid_(
             MapLimits(1., Eigen::Vector2d(10., 10.), CellLimits(20, 20))) {
-    probability_grid_.SetProbability(
+    probability_grid_.SetProbability(  // grid中hit点对应地图坐标(7,13)
         probability_grid_.limits().GetXYIndexOfCellContainingPoint(-3.5, 2.5),
         mapping::kMaxProbability);
-
+    // 点云hit对应地图坐标(7.5,12.5)，相对于grid中hit点对应地图坐标(7,13)，offset(-0.5,0.5)
+    // offset(-0.5,0.5)即机器人在世界坐标系中的姿态
     point_cloud_.emplace_back(-3.f, 2.f, 0.f);
 
     auto parameter_dictionary = common::MakeDictionary(R"text(

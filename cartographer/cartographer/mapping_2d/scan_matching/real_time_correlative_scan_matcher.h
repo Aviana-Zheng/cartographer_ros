@@ -67,6 +67,7 @@ class RealTimeCorrelativeScanMatcher {
   // Aligns 'point_cloud' within the 'probability_grid' given an
   // 'initial_pose_estimate' then updates 'pose_estimate' with the result and
   // returns the score.
+  // 匹配主函数
   double Match(const transform::Rigid2d& initial_pose_estimate,
                const sensor::PointCloud& point_cloud,
                const ProbabilityGrid& probability_grid,
@@ -77,12 +78,14 @@ class RealTimeCorrelativeScanMatcher {
   // http://ceres-solver.org/modeling.html
   //
   // Visible for testing.
+  // 运用暴力匹配的方法,对每个候选位置进行打分
   void ScoreCandidates(const ProbabilityGrid& probability_grid,
                        const std::vector<DiscreteScan>& discrete_scans,
                        const SearchParameters& search_parameters,
                        std::vector<Candidate>* candidates) const;
 
  private:
+  // 生成所有候选位置
   std::vector<Candidate> GenerateExhaustiveSearchCandidates(
       const SearchParameters& search_parameters) const;
 

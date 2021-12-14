@@ -234,7 +234,7 @@ class ProbabilityGrid {
 
   // Minimum and maximum cell coordinates of known cells to efficiently compute
   // cropping limits.
-  // 对应实际意义的最大和最小边界
+  // 对应地图的最大和最小边界
   int max_x_;
   int max_y_;
   int min_x_;

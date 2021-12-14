@@ -25,6 +25,7 @@
 namespace cartographer {
 namespace mapping_2d {
 
+// 配置文件接口
 proto::LocalTrajectoryBuilderOptions CreateLocalTrajectoryBuilderOptions(
     common::LuaParameterDictionary* const parameter_dictionary) {
   proto::LocalTrajectoryBuilderOptions options;

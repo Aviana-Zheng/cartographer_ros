@@ -88,6 +88,7 @@ TEST_F(MotionFilterTest, RotationalMotion) {
   MotionFilter motion_filter(options_);
   EXPECT_FALSE(motion_filter.IsSimilar(SecondsSinceEpoch(42),
                                        transform::Rigid3d::Identity()));
+  // 右手坐标系，绕y轴逆时针旋转1.9弧度
   EXPECT_TRUE(motion_filter.IsSimilar(
       SecondsSinceEpoch(42), transform::Rigid3d::Rotation(Eigen::AngleAxisd(
                                  1.9, Eigen::Vector3d::UnitY()))));
@@ -97,9 +98,11 @@ TEST_F(MotionFilterTest, RotationalMotion) {
   EXPECT_TRUE(motion_filter.IsSimilar(
       SecondsSinceEpoch(42), transform::Rigid3d::Rotation(Eigen::AngleAxisd(
                                  4., Eigen::Vector3d::UnitY()))));
+  // 2 * m_pi - 5.9
   EXPECT_FALSE(motion_filter.IsSimilar(
       SecondsSinceEpoch(42), transform::Rigid3d::Rotation(Eigen::AngleAxisd(
                                  5.9, Eigen::Vector3d::UnitY()))));
+  // 2 * m_pi - 5.9小于阈值
   EXPECT_TRUE(motion_filter.IsSimilar(SecondsSinceEpoch(42),
                                       transform::Rigid3d::Identity()));
 }

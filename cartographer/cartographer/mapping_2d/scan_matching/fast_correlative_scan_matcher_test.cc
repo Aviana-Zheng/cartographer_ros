@@ -37,7 +37,8 @@ namespace {
 TEST(PrecomputationGridTest, CorrectValues) {
   // Create a probability grid with random values that can be exactly
   // represented by uint8 values.
-  std::mt19937 prng(42);
+  std::mt19937 prng(42);   //Standard mersenne_twister_engine seeded with 42
+  // 随机数生成器uniform_int_distribution
   std::uniform_int_distribution<int> distribution(0, 255);
   ProbabilityGrid probability_grid(
       MapLimits(0.05, Eigen::Vector2d(5., 5.), CellLimits(250, 250)));
@@ -58,6 +59,7 @@ TEST(PrecomputationGridTest, CorrectValues) {
       float max_score = -std::numeric_limits<float>::infinity();
       for (int y = 0; y != width; ++y) {
         for (int x = 0; x != width; ++x) {
+          // 滑窗内的最大值
           max_score = std::max<float>(
               max_score,
               probability_grid.GetProbability(xy_index + Eigen::Array2i(x, y)));
@@ -79,7 +81,7 @@ TEST(PrecomputationGridTest, TinyProbabilityGrid) {
   probability_grid.StartUpdate();
   for (const Eigen::Array2i& xy_index :
        XYIndexRangeIterator(probability_grid.limits().cell_limits())) {
-    probability_grid.SetProbability(
+    probability_grid.SetProbability( // 循环中的种子值是相同的prng，生成的随机数也是相同的
         xy_index, PrecomputationGrid::ToProbability(distribution(prng)));
   }
 

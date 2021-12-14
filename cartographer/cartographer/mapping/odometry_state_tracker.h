@@ -31,8 +31,8 @@ num_odometry_states = 1000,
 
 OdometryState类含3个数据成员
 1,time，时间
-2,Rigid3d，里程计的位置
-3,Rigid3d，状态位置
+2,Rigid3d，里程计的相对于开机位置的姿态  T_start_now
+3,Rigid3d，全局位置  T_map_now
 */
 struct OdometryState {
   OdometryState(common::Time time, const transform::Rigid3d& odometer_pose,

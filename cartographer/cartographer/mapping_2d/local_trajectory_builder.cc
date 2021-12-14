@@ -24,6 +24,8 @@
 namespace cartographer {
 namespace mapping_2d {
 
+// 从构造函数的构造列表中几乎完成了所有对象的构建，但是留下了位姿估计器对象imu_tracker_
+// 在InitializeImuTracker中完成构造
 LocalTrajectoryBuilder::LocalTrajectoryBuilder(
     const proto::LocalTrajectoryBuilderOptions& options)
     : options_(options),
@@ -193,45 +195,65 @@ LocalTrajectoryBuilder::pose_estimate() const {
   return last_pose_estimate_;
 }
 
+// 添加IMU数据
 void LocalTrajectoryBuilder::AddImuData(
     const common::Time time, const Eigen::Vector3d& linear_acceleration,
     const Eigen::Vector3d& angular_velocity) {
+  // 首先检查配置项是否要求使用IMU数据
   CHECK(options_.use_imu_data()) << "An unexpected IMU packet was added.";
 
+  // InitializeImuTracker完成位姿估计器的初始化工作
   InitializeImuTracker(time);
+  // 在接收到IMU数据的时刻，进行位姿预测
   Predict(time);
+  // 更新IMU观测值
   imu_tracker_->AddImuLinearAccelerationObservation(linear_acceleration);
   imu_tracker_->AddImuAngularVelocityObservation(angular_velocity);
 }
 
+// 添加里程计数据
 void LocalTrajectoryBuilder::AddOdometerData(
     const common::Time time, const transform::Rigid3d& odometer_pose) {
+  // 检查对象imu_tracker_是否为空指针来判定位姿估计器是否已经完成初始化工作
   if (imu_tracker_ == nullptr) {
     // Until we've initialized the IMU tracker we do not want to call Predict().
     LOG(INFO) << "ImuTracker not yet initialized.";
     return;
   }
 
+  // 在接收到里程计数据的时刻，进行位姿预测
   Predict(time);
+  // 若通过则直接将里程计的数据喂给odometry_state_tracker_对象
   if (!odometry_state_tracker_.empty()) {
     const auto& previous_odometry_state = odometry_state_tracker_.newest();
+    // T_last_start * T_start_now = T_last_now
     const transform::Rigid3d delta =
         previous_odometry_state.odometer_pose.inverse() * odometer_pose;
+    // T_map_start * T_last_now = T_map_now
     const transform::Rigid3d new_pose =
         previous_odometry_state.state_pose * delta;
     odometry_correction_ = pose_estimate_.inverse() * new_pose;
   }
+  // 有点多余  pose_estimate_ * odometry_correction_ = 
+  // pose_estimate_ * pose_estimate_.inverse() * new_pose = new_pose
+  // 更新odometry_state_tracker_值
   odometry_state_tracker_.AddOdometryState(
       {time, odometer_pose, pose_estimate_ * odometry_correction_});
 }
 
+// 从构造函数的构造列表中几乎完成了所有对象的构建，但是留下了位姿估计器对象imu_tracker_
 void LocalTrajectoryBuilder::InitializeImuTracker(const common::Time time) {
+  // 检查对象imu_tracker_是否是一个空指针
+  // 如果不是意味着已经创建了一个位姿估计器对象，直接返回
+  // 否则创建一个imu_tracker_类型的位姿估计器，并在最后添加一个imu_gravity_time_constant。
+  // 完成imu_tracker_的初始化
   if (imu_tracker_ == nullptr) {
     imu_tracker_ = common::make_unique<mapping::ImuTracker>(
         options_.imu_gravity_time_constant(), time);
   }
 }
 
+// 某个时间的位姿预测
 void LocalTrajectoryBuilder::Predict(const common::Time time) {
   CHECK(imu_tracker_ != nullptr);
   CHECK_LE(time_, time);
@@ -246,10 +268,10 @@ void LocalTrajectoryBuilder::Predict(const common::Time time) {
             Eigen::Vector3d(velocity_estimate_.x(), velocity_estimate_.y(), 0.);
     // Use the current IMU tracker roll and pitch for gravity alignment, and
     // apply its change in yaw.
-    const Eigen::Quaterniond rotation =
-        Eigen::AngleAxisd(
+    const Eigen::Quaterniond rotation = // T_map_now
+        Eigen::AngleAxisd( // T_map_start
             transform::GetYaw(pose_estimate_.rotation()) - last_yaw,
-            Eigen::Vector3d::UnitZ()) *
+            Eigen::Vector3d::UnitZ()) *  // T_start_now
         imu_tracker_->orientation();
     pose_estimate_ = transform::Rigid3d(translation, rotation);
   }

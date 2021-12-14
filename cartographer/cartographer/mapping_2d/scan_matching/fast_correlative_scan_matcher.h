@@ -46,15 +46,23 @@ CreateFastCorrelativeScanMatcherOptions(
 // A precomputed grid that contains in each cell (x0, y0) the maximum
 // probability in the width x width area defined by x0 <= x < x0 + width and
 // y0 <= y < y0.
+/* 一个预先计算的网格，在每个单元格 (x0, y0) 中包含由 x0 <= x < x0 + width 和 y0 <= y < y0
+ * 定义的宽度 x 宽度区域中的最大概率。 
+ */
+// 来存储预算图的数据类型,只是一个容器而已
+// Cartographer仍然采取了一种空间换时间的方法来进一步的提高搜索效率
+// 实际的预算图是在PrecomputationGrid2D对象构建的时候计算的
 class PrecomputationGrid {
  public:
   PrecomputationGrid(const ProbabilityGrid& probability_grid,
-                     const CellLimits& limits, int width,
+                     const CellLimits& limits, int width,  // width滑窗的宽度
                      std::vector<float>* reusable_intermediate_grid);
 
   // Returns a value between 0 and 255 to represent probabilities between
   // kMinProbability and kMaxProbability.
   int GetValue(const Eigen::Array2i& xy_index) const {
+    // intermediate前width - 1个值无意义
+    // intermediate取的是栅格右侧(width-1)个栅格和此栅格的最大值
     const Eigen::Array2i local_xy_index = xy_index - offset_;
     // The static_cast<unsigned> is for performance to check with 2 comparisons
     // xy_index.x() < offset_.x() || xy_index.y() < offset_.y() ||
@@ -83,6 +91,9 @@ class PrecomputationGrid {
 
   // Offset of the precomputation grid in relation to the 'probability_grid'
   // including the additional 'width' - 1 cells.
+  // intermediate前width - 1个值无意义
+  // intermediate取的是栅格右侧(width-1)个栅格和此栅格的最大值
+  // offset_(-width + 1, -width + 1),
   const Eigen::Array2i offset_;
 
   // Size of the precomputation grid.
@@ -97,6 +108,9 @@ class PrecomputationGridStack;
 // An implementation of "Real-Time Correlative Scan Matching" by Olson.
 class FastCorrelativeScanMatcher {
  public:
+  // 构造函数，它有两个输入参数:
+  // grid是子图的占用栅格
+  // options则记录了各种配置项。 在它的成员构造列表中，完成了三个成员的构造。
   FastCorrelativeScanMatcher(
       const ProbabilityGrid& probability_grid,
       const proto::FastCorrelativeScanMatcherOptions& options);
@@ -110,6 +124,13 @@ class FastCorrelativeScanMatcher {
   // 'initial_pose_estimate'. If a score above 'min_score' (excluding equality)
   // is possible, true is returned, and 'score' and 'pose_estimate' are updated
   // with the result.
+  /* 5个输入参数， 
+   * 其中initial_pose_estimate描述了初始的位姿估计；
+   * point_cloud则是将要考察的路径节点下的激光点云数据；
+   * min_score是一个搜索节点的最小得分， 也就是前文中提到的score_threshold；
+   * 指针score和pose_estimate是两个输出参数，
+   * 用于成功匹配后返回匹配度和位姿估计。
+   */
   bool Match(const transform::Rigid2d& initial_pose_estimate,
              const sensor::PointCloud& point_cloud, float min_score,
              float* score, transform::Rigid2d* pose_estimate) const;
@@ -118,6 +139,15 @@ class FastCorrelativeScanMatcher {
   // restricted to the configured search window. If a score above 'min_score'
   // (excluding equality) is possible, true is returned, and 'score' and
   // 'pose_estimate' are updated with the result.
+  // 用于全地图匹配的接口函数
+  /* 4个输入参数， 
+   * point_cloud则是将要考察的路径节点下的激光点云数据；
+   * min_score是一个搜索节点的最小得分， 也就是前文中提到的score_threshold；
+   * 指针score和pose_estimate是两个输出参数，
+   * 用于成功匹配后返回匹配度和位姿估计。
+   * 全地图匹配也是调用函数MatchWithSearchParameters来实际完成扫描匹配的。
+   * 所不同的是，它需要提供一个以子图中心为搜索起点，覆盖整个子图的搜索窗口
+   */
   bool MatchFullSubmap(const sensor::PointCloud& point_cloud, float min_score,
                        float* score, transform::Rigid2d* pose_estimate) const;
 
@@ -144,8 +174,11 @@ class FastCorrelativeScanMatcher {
                            const std::vector<Candidate>& candidates,
                            int candidate_depth, float min_score) const;
 
+  // 关于闭环检测的扫描匹配器的各种配置
   const proto::FastCorrelativeScanMatcherOptions options_;
+  // 子图的地图作用范围，我们已经在分析占用栅格的数据结构的时候， 简单了解了该数据结构的字段和作用。
   MapLimits limits_;
+  // 预算图的存储结构，用于查询不同分支尺寸下的搜索节点上界。
   std::unique_ptr<PrecomputationGridStack> precomputation_grid_stack_;
 };
 

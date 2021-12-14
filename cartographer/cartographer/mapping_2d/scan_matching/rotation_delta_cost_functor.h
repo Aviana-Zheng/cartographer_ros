@@ -29,6 +29,8 @@ namespace scan_matching {
 class RotationDeltaCostFunctor {
  public:
   // Constructs a new RotationDeltaCostFunctor for the given 'angle'.
+  // scaling_factor   权重options_.translation_weight()
+  // angle    迭代初值 ceres_pose_estimate[2]
   explicit RotationDeltaCostFunctor(const double scaling_factor,
                                     const double angle)
       : scaling_factor_(scaling_factor), angle_(angle) {}
@@ -38,6 +40,7 @@ class RotationDeltaCostFunctor {
 
   template <typename T>
   bool operator()(const T* const pose, T* residual) const {
+    // 优化后的角度与迭代初值的角度的插值的差，乘以权重
     residual[0] = scaling_factor_ * (pose[2] - angle_);
     return true;
   }

@@ -83,6 +83,15 @@ class Submap : public mapping::Submap {
 // considered initialized: the old submap is no longer changed, the "new" submap
 // is now the "old" submap and is used for scan-to-map matching. Moreover, a
 // "new" submap gets created. The "old" submap is forgotten by this object.
+/*
+ActiveSubmaps类实际是对submap在使用过程进行了特殊管理和操作，其内部包含了两个submap
+一个用于匹配，一个用于插入。
+
+ActiveSubmaps类中的submaps_列表实际最多只两个submap，一个认为是old_map，
+另一个认为是new_map，类似于滑窗操作。当new_map插入激光scan的个数达到阈值时，
+则会将old_map进行结束，并且不再增加新的scan。同时将old_map进行删除，将new_map作为oldmap，
+然后重新初始化一个新的submap作为newmap。其具体实现可看代码注解，较为简单。
+*/
 class ActiveSubmaps {
  public:
   explicit ActiveSubmaps(const proto::SubmapsOptions& options);
@@ -100,16 +109,18 @@ class ActiveSubmaps {
   std::vector<std::shared_ptr<Submap>> submaps() const;
 
  private:
-  void FinishSubmap();
+  void FinishSubmap();    //无用，估计是代码升级后，删除的方法
+  // 加入一个新的submap
   void AddSubmap(const Eigen::Vector2f& origin);
 
-  const proto::SubmapsOptions options_;
+  const proto::SubmapsOptions options_;     // 配置信息
   int matching_submap_index_ = 0;
-  std::vector<std::shared_ptr<Submap>> submaps_;
-  RangeDataInserter range_data_inserter_;
+  std::vector<std::shared_ptr<Submap>> submaps_;    // 维护submap2d的列表
+  RangeDataInserter range_data_inserter_;   // 插入器接口
 };
 
 }  // namespace mapping_2d
 }  // namespace cartographer
 
 #endif  // CARTOGRAPHER_MAPPING_2D_SUBMAPS_H_
+

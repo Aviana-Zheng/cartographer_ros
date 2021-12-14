@@ -135,6 +135,7 @@ void ConstraintBuilder::ScheduleSubmapScanMatcherConstructionAndQueueWorkItem(
   }
 }
 
+// 为每个子图都构建一个SubmapScanMatcher类型的扫描匹配器
 void ConstraintBuilder::ConstructSubmapScanMatcher(
     const mapping::SubmapId& submap_id, const ProbabilityGrid* const submap) {
   auto submap_scan_matcher =

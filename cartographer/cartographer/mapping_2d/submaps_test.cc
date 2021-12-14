@@ -61,10 +61,13 @@ TEST(SubmapsTest, TheRightNumberOfScansAreInserted) {
   int correct_num_scans = 0;
   for (const auto& submap : all_submaps) {
     if (submap->num_range_data() == kNumRangeData * 2) {
+      // 99张，0~19，10~29，20~39，30~49，40~59，50~69，60~79，70~89，80~99
       ++correct_num_scans;
     }
   }
   // Submaps should not be left without the right number of scans in them.
+  // 子图不应该没有正确的扫描次数。 
+  // LOG(INFO) << correct_num_scans << " **** " << all_submaps.size() << std::endl;
   EXPECT_EQ(correct_num_scans, all_submaps.size() - 2);
 }
 
