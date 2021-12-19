@@ -52,6 +52,7 @@ SparsePoseGraph::~SparsePoseGraph() {
   CHECK(scan_queue_ == nullptr);
 }
 
+// 后端优化的数据准备
 std::vector<mapping::SubmapId> SparsePoseGraph::GrowSubmapTransformsAsNeeded(
     const int trajectory_id,
     const std::vector<std::shared_ptr<const Submap>>& insertion_submaps) {
@@ -162,6 +163,12 @@ void SparsePoseGraph::AddImuData(const int trajectory_id, common::Time time,
   });
 }
 
+/* 
+ * Cartographer在后台通过一个线程池并行的进行闭环检测，计算约束。 
+ * Global SLAM的核心PoseGraph2D通过MaybeAdd-WhenDone调用循环来组织后台的闭环检测。 
+ * 所谓的MaybeAdd-WhenDone调用循环是指，在任意调用MaybeAddConstraint、
+ * MaybeAddGlobalConstraint、NotifyEndOfScan之后，调用一次WhenDone，如此循环往复。
+ */
 void SparsePoseGraph::ComputeConstraint(const mapping::NodeId& node_id,
                                         const mapping::SubmapId& submap_id) {
   CHECK(submap_data_.at(submap_id).state == SubmapState::kFinished);
@@ -373,13 +380,25 @@ void SparsePoseGraph::RunFinalOptimization() {
 }
 
 void SparsePoseGraph::RunOptimization() {
+  // 先检查一下是否给后端优化器喂过数据
   if (optimization_problem_.submap_data().empty()) {
     return;
   }
+  /*
+   * 通过后端优化器的接口Solve进行SPA优化。根据注释的说法，程序运行到这里的时候，
+   * 实际上没有其他线程访问对象optimization_problem_, constraints_, 这2个对象。
+   * 又因为这个Solve接口实在太耗时了，所以没有在该函数之前加锁，以防止阻塞其他任务
+   */
   optimization_problem_.Solve(constraints_);
   common::MutexLocker locker(&mutex_);
 
+  /*
+   * 完成上面框图中Global SLAM的第三个任务，对在后端进行SPA优化过程中新增的节点的位姿进行调整，
+   * 以适应优化后的世界地图和运动轨迹。 获取后端优化器中子图和路径节点的数据，
+   * 用临时对象node_data记录之，并遍历所有的轨迹
+   */
   const auto& node_data = optimization_problem_.node_data();
+  // 遍历所有的节点，用优化后的位姿来更新轨迹点的世界坐标
   for (int trajectory_id = 0;
        trajectory_id != static_cast<int>(node_data.size()); ++trajectory_id) {
     int node_index = 0;
@@ -391,12 +410,15 @@ void SparsePoseGraph::RunOptimization() {
           node_data[trajectory_id][node_index].point_cloud_pose);
     }
     // Extrapolate all point cloud poses that were added later.
+    // 然后计算SPA优化前后的世界坐标变换关系，并将之左乘在后来新增的路径节点的全局位姿上，
+    // 得到修正后的轨迹
     const auto local_to_new_global = ComputeLocalToGlobalTransform(
         optimization_problem_.submap_data(), trajectory_id);
     const auto local_to_old_global = ComputeLocalToGlobalTransform(
         optimized_submap_transforms_, trajectory_id);
     const transform::Rigid3d old_global_to_new_global =
         local_to_new_global * local_to_old_global.inverse();
+    // 最后，更新路标位姿，并用成员变量记录下当前的子图位姿。
     for (; node_index < num_nodes; ++node_index) {
       const mapping::NodeId node_id{trajectory_id, node_index};
       trajectory_nodes_.at(node_id).pose =

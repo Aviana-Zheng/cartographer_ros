@@ -29,7 +29,7 @@
 namespace cartographer {
 namespace mapping_3d {
 
-struct ImuData {
+struct ImuData {  // IMU数据
   common::Time time;
   Eigen::Vector3d linear_acceleration;
   Eigen::Vector3d angular_velocity;

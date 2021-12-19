@@ -15,7 +15,14 @@
 SPARSE_POSE_GRAPH = {
   optimize_every_n_scans = 90,
   constraint_builder = {
+    -- 设定固定时间添加一个约束，时间太短则不添加，采样频率0.3
     sampling_ratio = 0.3,
+    -- 路径节点与子图相差的姿态
+    -- 这个距离阈值可以通过配置项max_constraint_distance来设定。
+    -- 这样做有两个好处， 其一可以一定程度上降低约束的数量，减少全局图优化的计算量，
+    -- 提高系统的运行效率; 其二，如果两者相差太远，很可能会受到累积误差的影响，导致添加错误的约束，
+    -- 给最终的全局优化带来负面的影响， 这样直接抛弃一些不太合理的约束，看似遗漏了很多信息，
+    -- 但对于优化结果而言可能是一件好事。
     max_constraint_distance = 15.,
     adaptive_voxel_filter = {
       max_length = 0.9,

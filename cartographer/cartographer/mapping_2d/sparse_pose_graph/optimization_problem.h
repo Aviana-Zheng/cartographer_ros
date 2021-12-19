@@ -36,12 +36,12 @@ namespace sparse_pose_graph {
 
 struct NodeData {
   common::Time time;
-  transform::Rigid2d initial_point_cloud_pose;
-  transform::Rigid2d point_cloud_pose;
+  transform::Rigid2d initial_point_cloud_pose; // 路径节点与子图相差的姿态
+  transform::Rigid2d point_cloud_pose;   // 全局位姿
 };
 
 struct SubmapData {
-  transform::Rigid2d pose;
+  transform::Rigid2d pose; // global_pose 全局位姿
 };
 
 // Implements the SPA loop closure method.
@@ -49,6 +49,7 @@ class OptimizationProblem {
  public:
   using Constraint = mapping::SparsePoseGraph::Constraint;
 
+  // 初始化，传递全局配置
   explicit OptimizationProblem(
       const mapping::sparse_pose_graph::proto::OptimizationProblemOptions&
           options);
@@ -57,17 +58,25 @@ class OptimizationProblem {
   OptimizationProblem(const OptimizationProblem&) = delete;
   OptimizationProblem& operator=(const OptimizationProblem&) = delete;
 
+  // 根据trajectory_id分类vector，deque按照时间关系记录的IMU数据
   void AddImuData(int trajectory_id, common::Time time,
                   const Eigen::Vector3d& linear_acceleration,
                   const Eigen::Vector3d& angular_velocity);
+  // 根据trajectory_id分类vector, vector按照时间关系加入node信息
   void AddTrajectoryNode(int trajectory_id, common::Time time,
                          const transform::Rigid2d& initial_point_cloud_pose,
                          const transform::Rigid2d& point_cloud_pose);
+  // 根据trajectory_id分类vector, vector按照时间关系加入submap信息
   void AddSubmap(int trajectory_id, const transform::Rigid2d& submap_pose);
 
+  // 设置ceres最大迭代次数
   void SetMaxNumIterations(int32 max_num_iterations);
 
   // Computes the optimized poses.
+  /** 
+   * @brief 后端优化核心函数，通过Ceres优化库，调整子图和路径节点的世界位姿
+   * @param constraints 位姿图的约束
+   */
   void Solve(const std::vector<Constraint>& constraints);
 
   const std::vector<std::vector<NodeData>>& node_data() const;
@@ -75,9 +84,12 @@ class OptimizationProblem {
 
  private:
   mapping::sparse_pose_graph::proto::OptimizationProblemOptions options_;
+  // 根据trajectory_id分类vector，deque按照时间关系记录的IMU数据
   std::vector<std::deque<mapping_3d::ImuData>> imu_data_;
+  // 根据trajectory_id分类vector, vector按照时间关系加入node信息
   std::vector<std::vector<NodeData>> node_data_;
-  std::vector<std::vector<SubmapData>> submap_data_;
+  // 根据trajectory_id分类vector, vector按照时间关系加入submap信息
+  std::vector<std::vector<SubmapData>> submap_data_; 
 };
 
 }  // namespace sparse_pose_graph

@@ -30,13 +30,33 @@ ceres::Solver::Options options;
 ceres::Solver::Summary summary;
 ```
 
+Ceres的求解过程包括构建最小二乘和求解最小二乘问题两部分，其中构建最小二乘问题的相关方法均包含在`Ceres::Problem`类中，涉及的成员函数主要包括`Problem::AddResidualBlock()`和`Problem::AddParameterBlock()`。
+
+https://blog.csdn.net/weixin_43991178/article/details/100532618
+
+### 1.1 Problem::AddResidualBlock( )
+
+`AddResidualBlock()`顾名思义主要用于向`Problem`类传递残差模块的信息，函数原型如下，传递的参数主要包括代价函数模块、损失函数模块和参数模块。
+
 关于cost_function，除了要提供代价函数的计算方法之外，还要明确其求导方法。求导方法我们完全可以以仿函数的形式自己定义一个，但更多的时候都在使用Ceres提供的AutoDiffCostFunction进行求导。    所以，我们经常能够看到类似下面示例的调用方法。
 
 ```c++
 problem.AddResidualBlock(new ceres::AutoDiffCostFunction<CostFunction, m, n>(new CostFunction(/* 构造参数 */)),loss_function, params);
+
+ResidualBlockId Problem::AddResidualBlock(CostFunction *cost_function, 
+										  LossFunction *loss_function, 
+										  const vector<double *> parameter_blocks)
+										  
+ResidualBlockId Problem::AddResidualBlock(CostFunction *cost_function, 
+										  LossFunction *loss_function,
+										  double *x0, double *x1, ...)
 ```
 
 类AutoDiffCostFunction是一个模板类，其模板参数列表中的CostFunction是计算残差项代价的仿函数类型，m是CostFunction所提供的残差项数量，n则是优化参数的数量。
+
+1. 代价函数：包含了参数模块的维度信息，内部使用仿函数定义误差函数的计算方式。AddResidualBlock( )函数会检测传入的参数模块是否和代价函数模块中定义的维数一致，维度不一致时程序会强制退出。代价函数模块的详解参见Ceres详解（二） CostFunction。
+2. 损失函数：用于处理参数中含有野值的情况，避免错误量测对估计的影响，常用参数包括HuberLoss、CauchyLoss等（完整的参数列表参见Ceres API文档）；该参数可以取NULL或nullptr，此时损失函数为单位函数。
+3. 参数模块：待优化的参数，可一次性传入所有参数的指针容器vector<double*>或依次传入所有参数的指针double*。
 
 代价函数本身的计算，要求我们以仿函数的形式，提供一个重载了运算符"()"的类，并在该重载中完成代价的计算。所以，我们会看到类似下侧示例代码的定义。    重载的运算符"()"有两个输入参数，其中params是优化的参数值，cost则记录了各个残差项中代价函数的输出。
 
@@ -59,6 +79,139 @@ public:
 正如上面AutoDiffCostFunction类型的模板参数m那样，一个CostFunction可能提供了多个残差项的代价，我们需要保证在重载的运算符"()"中更新的cost数量与模板参数m一致。
 
 CostFunction只是提供代价函数的计算方式，而残差的计算则有Ceres根据核函数的选择自己计算了。核函数并不是必须提供的，当不需要的时候可以空指针(nullptr)来代替，    此时残差项为  $\rho_i\left(\left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2\right) = \left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2$。
+
+
+
+### 1.2 Problem::AddParameterBlock( )
+
+用户在调用AddResidualBlock( )时其实已经隐式地向Problem传递了参数模块，但在一些情况下，需要用户显示地向Problem传入参数模块（通常出现在需要对优化参数进行重新参数化的情况）。Ceres提供了Problem::AddParameterBlock( )函数用于用户显式传递参数模块：
+
+```c++
+void Problem::AddParameterBlock(double *values, int size)
+
+void Problem::AddParameterBlock(double *values, int size, LocalParameterization *local_parameterization)
+```
+
+#### 1.2.1 LocalParameterization
+
+LocalParameterization类的作用是解决非线性优化中的过参数化问题。所谓过参数化，即待优化参数的实际自由度小于参数本身的自由度。例如在SLAM中，当采用四元数表示位姿时，由于四元数本身的约束（模长为1），实际的自由度为3而非4。此时，若直接传递四元数进行优化，冗余的维数会带来计算资源的浪费，需要使用Ceres预先定义的QuaternionParameterization对优化参数进行重构：
+
+```c++
+problem.AddParameterBlock(quaternion, 4);// 直接传递4维参数
+
+ceres::LocalParameterization* local_param = new ceres::QuaternionParameterization();
+problem.AddParameterBlock(quaternion, 4, local_param)//重构参数，优化时实际使用的是3维的等效旋转矢量
+```
+
+#### 1.2.2 自定义LocalParameterization
+
+`LocalParaneterization`本身是一个虚基类，详细定义如下。用户可以自行定义自己需要使用的子类，或使用Ceres预先定义好的子类。
+
+```c++
+class LocalParameterization {
+ public:
+  virtual ~LocalParameterization() {}
+  //
+  virtual bool Plus(const double* x,
+                    const double* delta,
+                    double* x_plus_delta) const = 0;//参数正切空间上的更新函数
+  virtual bool ComputeJacobian(const double* x, double* jacobian) const = 0; //雅克比矩阵
+  virtual bool MultiplyByJacobian(const double* x,
+                                  const int num_rows,
+                                  const double* global_matrix,
+                                  double* local_matrix) const;//一般不用
+  virtual int GlobalSize() const = 0; // 参数的实际维数
+  virtual int LocalSize() const = 0; // 正切空间上的参数维数
+};
+```
+
+上述成员函数中，需要我们改写的主要为`GlobalSize()`、`ComputeJacobian()`、`GlobalSize()`和`LocalSize()`，这里我们以ceres预先定义好的`QuaternionParameterization`为例具体说明，类声明如下：
+
+```c++
+class CERES_EXPORT QuaternionParameterization : public LocalParameterization {
+ public:
+  virtual ~QuaternionParameterization() {}
+  virtual bool Plus(const double* x,
+                    const double* delta,
+                    double* x_plus_delta) const;
+  virtual bool ComputeJacobian(const double* x,
+                               double* jacobian) const;
+  virtual int GlobalSize() const { return 4; }
+  virtual int LocalSize() const { return 3; }
+};
+```
+
+- 可以看到，GlobalSize()的返回值为4，即四元数本身的实际维数；由于在内部优化时，ceres采用的是旋转矢量，维数为3，因此LocalSize()的返回值为3。
+- 重载的Plus函数给出了四元数的更新方法，接受参数分别为优化前的四元数x，用旋转矢量表示的增量delta，以及更新后的四元数x_plus_delta。函数首先将增量由旋转矢量转换为四元数，随后采用标准四元数乘法对四元数进行更新。
+
+```c++
+bool QuaternionParameterization::Plus(const double* x,
+                                      const double* delta,
+                                      double* x_plus_delta) const {
+  // 将旋转矢量转换为四元数形式
+  const double norm_delta =
+      sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]);
+  if (norm_delta > 0.0) {
+    const double sin_delta_by_delta = (sin(norm_delta) / norm_delta);
+    double q_delta[4];
+    q_delta[0] = cos(norm_delta);
+    q_delta[1] = sin_delta_by_delta * delta[0];
+    q_delta[2] = sin_delta_by_delta * delta[1];
+    q_delta[3] = sin_delta_by_delta * delta[2];
+    // 采用四元数乘法更新
+    QuaternionProduct(q_delta, x, x_plus_delta);
+  } else {
+    for (int i = 0; i < 4; ++i) {
+      x_plus_delta[i] = x[i];
+    }
+  }
+  return true;
+}
+```
+
+- ComputeJacobian函数给出了四元数相对于旋转矢量的雅克比矩阵计算方法，即 $\mathcal{J}_{4 \times 3}=d \mathcal{q} / d \mathcal{v} = d [q_w, q_x, q_y, q_z]^T /d [x,y,z] $，对应Jacobian维数为4行3列，存储方式为行主序。
+
+```c++
+bool QuaternionParameterization::ComputeJacobian(const double* x,
+                                                 double* jacobian) const {
+  jacobian[0] = -x[1]; jacobian[1]  = -x[2]; jacobian[2]  = -x[3];  // NOLINT
+  jacobian[3] =  x[0]; jacobian[4]  =  x[3]; jacobian[5]  = -x[2];  // NOLINT
+  jacobian[6] = -x[3]; jacobian[7]  =  x[0]; jacobian[8]  =  x[1];  // NOLINT
+  jacobian[9] =  x[2]; jacobian[10] = -x[1]; jacobian[11] =  x[0];  // NOLINT
+  return true;
+}
+```
+
+#### 1.2.3 ceres预定义LocalParameterization
+
+除了上面提到的`QuaternionParameterization`外，ceres还提供下述预定义`LocalParameterization`子类：
+
+- `EigenQuaternionParameterization`：除四元数排序采用Eigen的实部最后外，与`QuaternionParameterization`完全一致；
+- `IdentityParameterizationconst`：`LocalSize与GlobalSize`一致，相当于不传入`LocalParameterization`；
+- `SubsetParameterization`：`GlobalSize`为2，`LocalSize`为1，用于第一维不需要优化的情况；
+- `HomogeneousVectorParameterization`：具有共面约束的空间点；
+- `ProductParameterization`：7维位姿变量一同优化，而前4维用四元数表示的情况（这里源文档只举了一个例子，具体用法有待深化）；
+
+### 1.3 其他成员函数
+
+`Probelm`还提供了其他关于`ResidualBlock`和`ParameterBlock`的函数，例如获取模块维数、判断是否存在模块、存在的模块数目等，这里只列出几个比较重要的函数，完整的列表参见[ceres API](http://www.ceres-solver.org/nnls_modeling.html#problem)：
+
+```c++
+// 设定对应的参数模块在优化过程中保持不变
+void Problem::SetParameterBlockConstant(double *values)
+// 设定对应的参数模块在优化过程中可变
+void Problem::SetParameterBlockVariable(double *values)
+// 设定优化下界
+void Problem::SetParameterLowerBound(double *values, int index, double lower_bound)
+// 设定优化上界
+void Problem::SetParameterUpperBound(double *values, int index, double upper_bound)
+// 该函数紧跟在参数赋值后，在给定的参数位置求解Problem，给出当前位置处的cost、梯度以及Jacobian矩阵；
+bool Problem::Evaluate(const Problem::EvaluateOptions &options, 
+					   double *cost, vector<double>* residuals, 
+					   vector<double> *gradient, CRSMatrix *jacobian)
+```
+
+
 
 完成了上述的准备工作之后，我们就可以调用ceres::Solve求解了。最后的解保存在准备工作中的params对象中，需要强调的是，在求解之前应当给params一个比较合理的迭代初值。
 

@@ -45,13 +45,14 @@ class LocalTrajectoryBuilder {
     common::Time time;  // 时间戳
     // 更新后的submap列表（仅最新的submap）
     std::vector<std::shared_ptr<const Submap>> insertion_submaps;
-    // tracking 坐标系下的位姿(Local SLAM坐标系下的位姿), 
     // 需要乘以tracking frame in map的转换(Local SLAM坐标系到Global SLAM坐标系的转换)
     // 才能转到全局坐标系
-    transform::Rigid3d tracking_to_tracking_2d;
-    // tracking 坐标系下 本帧的点云
-    sensor::RangeData range_data_in_tracking_2d;
-    transform::Rigid2d pose_estimate_2d;
+    // Computes the rotation without yaw, as defined by GetYaw().
+    // tracking_to_tracking_2d 是使pose_prediction不包含yaw的旋转部分
+    transform::Rigid3d tracking_to_tracking_2d; //不包含yaw，为了旋转到2d平面
+    // tracking_2d 坐标系下 本帧的点云
+    sensor::RangeData range_data_in_tracking_2d; 
+    transform::Rigid2d pose_estimate_2d;  // 平面位移x,y、yaw
   };
 
   explicit LocalTrajectoryBuilder(
@@ -96,7 +97,7 @@ class LocalTrajectoryBuilder {
   const proto::LocalTrajectoryBuilderOptions options_;  // 轨迹跟踪器的配置选项
   // 当前正在维护的子图
   ActiveSubmaps active_submaps_;  
-  // 上一次预测的位姿值
+  // time时刻预测的位姿值
   mapping::GlobalTrajectoryBuilderInterface::PoseEstimate last_pose_estimate_;
 
   // Current 'pose_estimate_' and 'velocity_estimate_' at 'time_'.

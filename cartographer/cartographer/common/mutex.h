@@ -78,6 +78,8 @@ Locker类提供2个成员函数Await()和AwaitWithTimeout()
 
 // Defines an annotated mutex that can only be locked through its scoped locker
 // implementation.
+// 没有传递参数给`ACQUIRE`或`RELEASE`，则假定参数为`this`  ACQUIRE(mutex)  RELEASE()
+// 需配合 CAPABILITY 使用，将`Container`转为能力
 class CAPABILITY("mutex") Mutex {
  public:
   // A RAII class that acquires a mutex in its constructor, and
@@ -85,14 +87,17 @@ class CAPABILITY("mutex") Mutex {
   // conditions that get checked whenever the mutex is released.
   class SCOPED_CAPABILITY Locker {
    public:
+    // ACQUIRE(mutex)能力解释：能力为mutex，在进入Locker后持有，退出后持有
     Locker(Mutex* mutex) ACQUIRE(mutex) : mutex_(mutex), lock_(mutex->mutex_) {}
-
+    
+    // RELEASE() 调用函数或方法时，释放mutex,即函数进入前已持有，退出前释放
     ~Locker() RELEASE() {
       lock_.unlock();    //解锁
       mutex_->condition_.notify_all();     //条件变量通知解锁
     }
 
     template <typename Predicate>
+    // REQUIRES(this)能力解释：能力为this,在函数进入前持有，退出时后必须持有
     void Await(Predicate predicate) REQUIRES(this) {
       /*wait()实质是分3步：
       1.对lock_解锁
@@ -103,6 +108,7 @@ class CAPABILITY("mutex") Mutex {
     }
 
     template <typename Predicate>
+    // REQUIRES(this)能力解释：能力为this,在函数进入前持有，退出时后必须持有
     bool AwaitWithTimeout(Predicate predicate, common::Duration timeout)
         REQUIRES(this) {
           //等待谓词为真或者直到超时timeout返回。
@@ -111,10 +117,13 @@ class CAPABILITY("mutex") Mutex {
 
    private:
     Mutex* mutex_;
+    // 方便线程对互斥量上锁，但提供了更好的上锁和解锁控制 提供了更好的上锁和解锁控制
     std::unique_lock<std::mutex> lock_;
   };
 
  private:
+  // https://www.cnblogs.com/haippy/p/3252041.html
+  // C++11 并发指南五(std::condition_variable 详解)
   std::condition_variable condition_;
   std::mutex mutex_;
 };

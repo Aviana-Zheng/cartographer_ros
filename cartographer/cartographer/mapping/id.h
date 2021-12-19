@@ -32,8 +32,8 @@ namespace mapping {
 如何唯一的表达这些节点node？节点标号:轨迹id+{0,1,2,...}
 */
 struct NodeId {
-  int trajectory_id;
-  int node_index;
+  int trajectory_id;  // 标记当前跟踪的轨迹
+  int node_index;   // 从0开始计数的和node_index，分别为每个节点提供一个唯一的编号
 
 // 比较<符号，成员函数
   bool operator<(const NodeId& other) const {
@@ -54,8 +54,8 @@ inline std::ostream& operator<<(std::ostream& os, const NodeId& v) {
 如何给这些submap标号? 轨迹id+ {0,1,2,3...}
 */
 struct SubmapId {
-  int trajectory_id;
-  int submap_index;
+  int trajectory_id;  // 标记当前跟踪的轨迹
+  int submap_index;   // 从0开始计数的submap_index，分别为每个子图提供一个唯一的编号
 
   bool operator==(const SubmapId& other) const {
     return std::forward_as_tuple(trajectory_id, submap_index) ==

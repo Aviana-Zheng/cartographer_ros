@@ -50,15 +50,20 @@ class SparsePoseGraph {
   // pose adjustment for 2d mapping." Intelligent Robots and Systems (IROS),
   // 2010 IEEE/RSJ International Conference on (pp. 22--29). IEEE, 2010.
   // 约束 
+  // cartographer paper-公式(SPA) (4) (5)
   struct Constraint {
     struct Pose {
-      transform::Rigid3d zbar_ij;  //paper-公式(2)
-      double translation_weight;
-      double rotation_weight;
+      transform::Rigid3d zbar_ij;  // 在子图的 ,对应εij
+      // 两个权重对应Σij，用于描述不确定度
+      double translation_weight;   // 平移的权重
+      double rotation_weight;      // 旋转的权重
     };
 
-    SubmapId submap_id;  // 'i' in the paper.
-    NodeId node_id;      // 'j' in the paper.
+    // 有一个相同的字段trajectory_id，用于标记当前跟踪的轨迹。
+    // 各自有一个从0开始计数的submap_index和node_index，
+    // 分别为每个子图和节点提供一个唯一的编号
+    SubmapId submap_id;  // 'i' in the paper.记录约束对应的子图索引
+    NodeId node_id;      // 'j' in the paper.  记录节点索引
 
     // Pose of the scan 'j' relative to submap 'i'.
     Pose pose;
@@ -66,6 +71,8 @@ class SparsePoseGraph {
     // Differentiates between intra-submap (where scan 'j' was inserted into
     // submap 'i') and inter-submap constraints (where scan 'j' was not inserted
     // into submap 'i').
+    // INTER_SUBMAP: loop closure constraints
+    // Only loop closure constraints should have a loss function.
     enum Tag { INTRA_SUBMAP, INTER_SUBMAP } tag;
   };
 
