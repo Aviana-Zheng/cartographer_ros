@@ -213,6 +213,7 @@ class ConstraintBuilder {
   // added. This is always the highest scan index seen so far, even when older
   // scans are matched against a new submap.
   // 当前添加计算的扫描索引。 这始终是迄今为止看到的最高扫描索引，即使旧扫描与新子图匹配。 
+  // 闭环检测的次数，也可以理解为添加的节点数量，一个节点一次闭环检测
   int current_computation_ GUARDED_BY(mutex_) = 0;
 
   // For each added scan, maps to the number of pending(待办的) computations that were

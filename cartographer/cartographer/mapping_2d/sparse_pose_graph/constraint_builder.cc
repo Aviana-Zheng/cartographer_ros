@@ -104,6 +104,8 @@ void ConstraintBuilder::MaybeAddConstraint(
     // 通过函数ScheduleSubmapScanMatcherConstructionAndQueueWorkItem构建了一个扫描匹配器
     // 这个函数并没有完成扫描匹配器的构建，而是通过lambda表达式和线程池推后实现的
     // lambda表达式中调用的函数ComputeConstraint具体完成了约束的计算。
+    // 如果A函数调用了B函数，B函数排除了某个能力EXCLUDES(mutex_)，A函数就不能递归排除该功能
+    // work_item就是lambda表达式
     ScheduleSubmapScanMatcherConstructionAndQueueWorkItem(
         submap_id, &submap->probability_grid(), [=]() EXCLUDES(mutex_) {
           ComputeConstraint(submap_id, submap, node_id,
@@ -115,7 +117,7 @@ void ConstraintBuilder::MaybeAddConstraint(
   }
 }
 
-// 计算子图和路径节点之间是否存在可能的约束,所不同的是，该接口只有四个输入参数，
+// 计算子图和路径节点之间是否存在可能的约束,所不同的是，该接口只有5个输入参数，
 // 没有提供初始相对位姿， 而且它的扫描匹配是在整个子图上进行的
 void ConstraintBuilder::MaybeAddGlobalConstraint(
     const mapping::SubmapId& submap_id, const Submap* const submap,
@@ -164,6 +166,7 @@ void ConstraintBuilder::WhenDone(
 
 // 通过函数ScheduleSubmapScanMatcherConstructionAndQueueWorkItem构建了一个扫描匹配器
 // 这个函数并没有完成扫描匹配器的构建，而是通过lambda表达式和线程池推后实现的
+// 如果已有扫描匹配器，work_item直接加入线程池，否则，先创建，work_item再加入线程池
 void ConstraintBuilder::ScheduleSubmapScanMatcherConstructionAndQueueWorkItem(
     const mapping::SubmapId& submap_id, const ProbabilityGrid* const submap,
     const std::function<void()> work_item) {
@@ -175,6 +178,7 @@ void ConstraintBuilder::ScheduleSubmapScanMatcherConstructionAndQueueWorkItem(
     // 保证在完成了所有计算约束的任务之后才会执行constraint_task的计算任务。
     submap_queued_work_items_[submap_id].push_back(work_item);
     if (submap_queued_work_items_[submap_id].size() == 1) {
+      // 将构建扫描匹配器的任务放置到线程池的调度队列中
       thread_pool_->Schedule(
           [=]() { ConstructSubmapScanMatcher(submap_id, submap); });
     }
@@ -182,6 +186,7 @@ void ConstraintBuilder::ScheduleSubmapScanMatcherConstructionAndQueueWorkItem(
 }
 
 // 为每个子图都构建一个SubmapScanMatcher类型的扫描匹配器
+// 先创建扫描匹配器，work_item再加入线程池
 void ConstraintBuilder::ConstructSubmapScanMatcher(
     const mapping::SubmapId& submap_id, const ProbabilityGrid* const submap) {
   // 成功创建的匹配器将以submap_id为索引被保存在容器submap_scan_matchers_中
@@ -192,7 +197,6 @@ void ConstraintBuilder::ConstructSubmapScanMatcher(
   submap_scan_matchers_[submap_id] = {submap, std::move(submap_scan_matcher)};
   for (const std::function<void()>& work_item :
        submap_queued_work_items_[submap_id]) {
-    // 将构建扫描匹配器的任务放置到线程池的调度队列中
     thread_pool_->Schedule(work_item);
   }
   submap_queued_work_items_.erase(submap_id);
@@ -306,6 +310,7 @@ void ConstraintBuilder::ComputeConstraint(
 }
 
 // 当一轮MaybeAdd-WhenDone任务结束后，用来调用WhenDone接口注册的回调函数的
+// current_computation  :   computation_index
 void ConstraintBuilder::FinishComputation(const int computation_index) {
   Result result;
   std::unique_ptr<std::function<void(const Result&)>> callback;
@@ -348,6 +353,7 @@ int ConstraintBuilder::GetNumFinishedScans() {
   if (pending_computations_.empty()) {
     return current_computation_;
   }
+  // C ++ map begin()函数用于返回引用map容器第一个元素的迭代器。
   return pending_computations_.begin()->first;
 }
 

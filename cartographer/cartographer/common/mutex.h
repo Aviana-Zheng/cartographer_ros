@@ -31,8 +31,9 @@ common/mutex.h主要是对c++11 的mutex的封装。
 namespace cartographer {
 namespace common {
 
-
-/*不使用clang时,以下宏定义全部为空操作.故看见宏定义时可暂时忽略*/
+// Clang Thread Safety Analysis 
+// 由Google与CERT / SEI合作开发的，并广泛用于Google的内部代码库中
+// 不使用clang时,以下宏定义全部为空操作.故看见宏定义时可暂时忽略
 // Enable thread safety attributes only with clang.
 // The attributes can be safely erased when compiling with other compilers.
 #if defined(__SUPPORT_TS_ANNOTATION__) || defined(__clang__)
@@ -93,7 +94,7 @@ class CAPABILITY("mutex") Mutex {
     // RELEASE() 调用函数或方法时，释放mutex,即函数进入前已持有，退出前释放
     ~Locker() RELEASE() {
       lock_.unlock();    //解锁
-      mutex_->condition_.notify_all();     //条件变量通知解锁
+      mutex_->condition_.notify_all();     //条件变量唤醒所有线程
     }
 
     template <typename Predicate>
@@ -125,6 +126,7 @@ class CAPABILITY("mutex") Mutex {
   // https://www.cnblogs.com/haippy/p/3252041.html
   // C++11 并发指南五(std::condition_variable 详解)
   std::condition_variable condition_;
+  // 最初产生的 `mutex `对象是处于` unlocked `状态的
   std::mutex mutex_;
 };
 

@@ -35,6 +35,7 @@ ThreadPool::ThreadPool(int num_threads) {
   for (int i = 0; i != num_threads; ++i) {
     // emplace_back函数的作用是减少对象拷贝和构造次数，
     // 是C++11中的新特性，主要适用于对临时对象的赋值。
+    // 如果A函数调用了B函数，B函数排除了某个能力，A函数就不能递归排除该功能
     pool_.emplace_back([this]() { ThreadPool::DoWork(); });
   }
 }
@@ -44,14 +45,14 @@ ThreadPool::ThreadPool(int num_threads) {
 只有等待pool结束所有的线程执行函数(join结束),ThreadPool才能析构完成
 */
 ThreadPool::~ThreadPool() {
-  {
+  { // locker的作用域在{}，出了作用域则自动析构，唤醒所有线程
     MutexLocker locker(&mutex_);
     CHECK(running_);
     running_ = false;
     CHECK_EQ(work_queue_.size(), 0);
   }
   for (std::thread& thread : pool_) {
-    thread.join();
+    thread.join();  // 等待所有线程执行完毕
   }
 }
 
@@ -78,9 +79,9 @@ void ThreadPool::DoWork() {
   for (;;) {
     std::function<void()> work_item;
     {
-      // 加锁,同一时刻只能一个线程"领取"某个函数,何时执行这个函数呢? 
-      // 最后一行即为抢到的线程开始执行work_item
+      // 加锁,同一时刻只能一个线程"领取"某个函数
       MutexLocker locker(&mutex_);
+      // 在work_queue_不为空或者running状态为false的前提下，才可以唤醒该线程
       locker.Await([this]() REQUIRES(mutex_) {
         return !work_queue_.empty() || !running_;
         //注意,队列不为空或者不在running_状态,条件变量都需要通知该函数
@@ -92,6 +93,7 @@ void ThreadPool::DoWork() {
         return;
       }
     }
+    // 抢到的线程开始执行work_item
     CHECK(work_item);
     work_item();
   }
@@ -99,3 +101,46 @@ void ThreadPool::DoWork() {
 
 }  // namespace common
 }  // namespace cartographer
+
+/*
+ * 在C/C++中大括号指明了变量的作用域，
+ * 在大括号内声明的局部变量其作用域自变量声明开始，到大括号之后终结。
+ * { } 里的内容是一个“块”，单独的{ }在执行顺序上没有改变，仍然是顺序执行
+eg:
+void MyProcess(MyType input, MyType &output)
+ 
+{
+   MyType filter = input;
+ 
+   {
+      MyType temp;
+      step1(filter,temp);
+   }
+ 
+ 
+   {
+      MyType temp;
+      step2(filter,temp);
+   }
+ 
+ 
+   {
+      MyType temp;
+      step3(filter,temp);
+   }
+ 
+   output = filter;
+}
+ 
+
+ 以上程序实现了简单的管道/过滤器结构：
+
+          temp1    temp2      temp3
+           ↓         ↓          ↓ 
+input --> step1 --> step2 --> step3 --> output
+
+temp都是临时变量，
+如果没有大括号的约束，每个临时变量都存在于函数作用域中，那么频繁增减流程时出错的概率大大增加。
+放在大括号中，不仅程序阅读起来很清楚，而且也不容易出错
+
+ */

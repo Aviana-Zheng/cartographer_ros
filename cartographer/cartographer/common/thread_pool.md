@@ -112,29 +112,6 @@ int main(int argc, const char *argv[])
 }  /* ----------  end of function main  ---------- */
 ```
 
-Makefile 如下：
-
-```c++
-all:Thread
-
-CC=g++
-CPPFLAGS=-Wall -std=c++11 -ggdb
-LDFLAGS=-pthread
-
-Thread:Thread.o
-    $(CC) $(LDFLAGS) -o $@ $^
-
-Thread.o:Thread.cc
-    $(CC) $(CPPFLAGS) -o $@ -c $^
-
-
-.PHONY:
-    clean
-
-clean:
-    rm Thread.o Thread
-```
-
 注意在 Linux GCC4.6 环境下，编译时需要加 -pthread，否则执行时会出现：
 
 ```shell
@@ -145,6 +122,93 @@ Aborted (core dumped)
 ```
 
 原因是 GCC 默认没有加载 pthread 库，据说在后续的版本中可以不用在编译时添加 -pthread 选项。
+
+改用g++ 编译，添加-lpthread。
+
+`launch.json` 如下：
+
+```c++
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "preLaunchTask": "build",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
+
+```
+
+`tasks.json`如下：
+
+```c++
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-std=c++11",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}",
+                "-lpthread"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ],
+    "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        //"panel": "shared",
+        //"showReuseMessage": true,
+        //"clear": false
+    }
+}
+
+```
+
+输出为：
+
+```c++
+hello thread
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-rilx23ue.1cf" 1>"/tmp/Microsoft-MIEngine-Out-gzyq13wr.ukm"
+
+Press any key to continue...
+```
+
+
+
+
 
 ## C++11 并发指南二(std::thread 详解)
 
@@ -200,6 +264,7 @@ int main()
     int n = 0;
     std::thread t1; // t1 is not a thread
     std::thread t2(f1, n + 1); // pass by value
+    // std::ref 用于包装按引用传递的值。 
     std::thread t3(f2, std::ref(n)); // pass by reference
     std::thread t4(std::move(t3)); // t4 is now running f2(). t3 is no longer a thread
     t2.join();
@@ -207,6 +272,27 @@ int main()
     std::cout << "Final value of n is " << n << '\n';
 }
 ```
+
+输出为：
+
+```c++
+Thread 1 executing
+Thread 2 executing
+Thread Thread 2 executing
+1 executing
+Thread 2 executing
+Thread 1 executing
+Thread 2 executing
+Thread 1 executing
+Thread Thread 2 executing
+1 executing
+Final value of n is 5
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-531ttprn.kvj" 1>"/tmp/Microsoft-MIEngine-Out-xblivzjh.5yf"
+
+Press any key to continue...
+```
+
+
 
 ### move 赋值操作
 
@@ -257,35 +343,184 @@ int main(int argc, const char *argv[])
 }  /* ----------  end of function main  ---------- */
 ```
 
+输出为：
+
+```c++
+Spawning 5 threads...
+Done spawning threads! Now wait for them to join
+hello thread 140737335801600 paused 1 seconds
+hello thread 140737327408896 paused 2 seconds
+hello thread 140737319016192 paused 3 seconds
+hello thread 140737310623488 paused 4 seconds
+hello thread 140737302230784 paused 5 seconds
+All threads joined.
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-00srmz3b.nve" 1>"/tmp/Microsoft-MIEngine-Out-trelieis.ejm"
+
+Press any key to continue...
+```
+
+
+
 ### 其他成员函数
 
-- [**get_id**](http://www.cplusplus.com/reference/thread/thread/get_id/)
+### [**get_id**](http://www.cplusplus.com/reference/thread/thread/get_id/)
 
-  获取线程 ID。
+获取线程 ID。
 
-- [**joinable**](http://www.cplusplus.com/reference/thread/thread/joinable/)
+### [**joinable**](http://www.cplusplus.com/reference/thread/thread/joinable/)
 
-  检查线程是否可被 join。
+检查线程是否可被 join。
 
-- [**join**](http://www.cplusplus.com/reference/thread/thread/join/)
+### [**join**](http://www.cplusplus.com/reference/thread/thread/join/)
 
-  Join 线程。 
+Join 线程,`join`是等待被创建线程的结束，并回收它的资源
 
-- [**detach**](http://www.cplusplus.com/reference/thread/thread/detach/)   分离
+在简单的程序中一般只需要一个线程就可以搞定，也就是主线程：
 
-  Detach 线程 
+```c++
+int main()
+{
+    cout << "主线程开始运行\n";
+}
+```
 
-- [**swap**](http://www.cplusplus.com/reference/thread/thread/swap/)
+现在假设我要做一个比较耗时的工作，从一个服务器下载一个视频并进行处理，那么我的代码会变成：
 
-  Swap 线程 。 
+```c++
+int main()
+{
+    cout << "主线程开始运行\n";
+    download();  // 下载视频到本地
+    process();  // 本地处理
+}
+```
 
-- [**native_handle**](http://www.cplusplus.com/reference/thread/thread/native_handle/)
+如果我需要两个视频素材一起在本地进行处理，也很简单：
 
-  返回 native handle。 
+```c++
+int main()
+{
+    cout << "主线程开始运行\n";
+    download1();  // 下载视频1
+    download2();  // 下载视频2
+    process();  // 一起处理一下
+}
+```
 
-- **hardware_concurrency [static\]**
+本身这么做完全没有问题，可是就是有点浪费时间，如果两个视频能够同时下载就好了，这时候线程就派上了用场：
 
-  检测硬件并发特性。
+```c++
+void download1()
+{
+    cout << "开始下载第一个视频..." << endl;
+    for (int i = 0; i < 100; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        cout << "下载进度:" << i << endl;
+    }
+    cout << "第一个视频下载完成..." << endl;
+}
+
+void download2()
+{
+    cout << "开始下载第二个视频..." << endl;
+    for (int i = 0; i < 100; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        cout << "下载进度:" << i << endl;
+    }
+    cout << "第二个视频下载完成..." << endl;
+}
+
+int main()
+{
+    cout << "主线程开始运行\n";
+    std::thread d2(download2);
+    download1();
+
+    process();
+}
+```
+
+主线程叫来了d2这个线程去下载第二个视频，自己去下载第一个视频，减轻了自己的工作量也缩短了时间，仔细看一下download2()中的sleep可以发现，两个视频同时下载肯定是视频二先下载完，这样在主线程下载完视频一的时候视频二已经准备好了，后面就可以一起进行处理，没什么问题，但是万一视频二的下载时间比视频一的时间长呢？当视频一下载完了，d2还没干完活，本地还没有视频二，接下来处理的时候肯定会有问题，或者说接下来不能直接进行处理，要等d2干完活后，主线程才能去处理两个视频。
+
+在这种场景下就用到了**join()**这个函数。
+
+先贴一下关于join()函数的解释：
+
+```c++
+The function returns when the thread execution has completed.This synchronizes the moment this function returns with the completion of all the operations in the thread: This blocks the execution of the thread that calls this function until the function called on construction returns (if it hasn't yet).
+```
+
+总结理解一下就是两个关键点：
+
+- **谁调用了这个函数？**调用了这个函数的线程对象，一定要等这个线程对象的方法（在构造时传入的方法）执行完毕后（或者理解为这个线程的活干完了！），这个join()函数才能得到返回。
+- **在什么线程环境下调用了这个函数？**上面说了必须要等线程方法执行完毕后才能返回，那必然是阻塞调用线程的，也就是说如果一个线程对象在一个线程环境调用了这个函数，那么这个线程环境就会被阻塞，直到这个线程对象在构造时传入的**方法**执行完毕后，才能继续往下走，另外如果线程对象在调用join()函数之前，就已经做完了自己的事情（在构造时传入的方法执行完毕），那么这个函数不会阻塞线程环境，线程环境正常执行。
+
+接下来修改代码并结合起来解释一下：
+
+```c++
+#include <iostream>       // std::cout
+#include <chrono>         // std::chrono::milliseconds
+#include <thread>         // std::thread
+#include <mutex>          // std::timed_mutex
+
+using namespace std;
+
+void download1()
+{
+    cout << "开始下载第一个视频..." << endl;
+    for (int i = 0; i < 100; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        cout << "第一个视频下载进度:" << i << endl;
+    }
+    cout << "第一个视频下载完成..." << endl;
+}
+
+void download2()
+{
+    cout << "开始下载第二个视频..." << endl;
+    for (int i = 0; i < 100; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(80));
+        cout << "第二个视频下载进度:" << i << endl;
+    }
+    cout << "第二个视频下载完成..." << endl;
+}
+void process()
+{
+    cout << "开始处理两个视频" << endl;
+}
+
+int main()
+{
+    cout << "主线程开始运行\n";
+    std::thread d2(download2);
+    download1();
+    d2.join();
+    process();
+}
+```
+
+现在下载视频1需要5秒，下载视频2需要8秒，当视频1下载完成后要等待视频2下载完成才能一起进行处理，为了实现这个目的我们在30行只加入了一行代码**d2.join()**。
+
+在这个场景下，我们明确两个事情：
+
+- **谁调用了join()函数？**d2这个线程对象调用了join()函数，因此必须等待d2的下载任务结束了，d2.join()函数才能得到返回。
+- **d2在哪个线程环境下调用了join()函数？**d2是在主线程的环境下调用了join()函数，因此主线程要等待d2的线程工作做完，否则主线程将一直处于block状态；这里不要搞混的是d2真正做的任务（下载）是在另一个线程做的，但是d2调用join()函数的动作是在主线程环境下做的。
+
+### [**detach**](http://www.cplusplus.com/reference/thread/thread/detach/)   分离
+
+Detach 线程 
+
+### [**swap**](http://www.cplusplus.com/reference/thread/thread/swap/)
+
+Swap 线程 。 
+
+### [**native_handle**](http://www.cplusplus.com/reference/thread/thread/native_handle/)
+
+返回 native handle。 
+
+### **hardware_concurrency [static\]**
+
+检测硬件并发特性。
 
 
 
@@ -555,6 +790,8 @@ void test() {
 
 exclude是函数或方法上的一个属性，声明**调用者**在调用之前不能持有给定能力。此注释用于防止死锁。许多互斥锁的实现都不是可重入的，所以如果函数第二次获得互斥锁，就会发生死锁。
 
+死锁的规范定义：集合中的每一个进程都在等待只能由本集合中的其他进程才能引发的事件，那么该组进程是死锁的。
+
 ```c++
 EXCLUDES(mu)：线程在调用clear时不能持有mu，否则会发生死锁
 ```
@@ -761,7 +998,7 @@ class Foo {
 为EXCLUDES提供了更强的安全保证
 ```
 
-采用`REQUIRES`属性，链接`！`，表示不应拥有某种能力
+采用`REQUIRES`属性，表示不应拥有某种能力
 
 ```c++
 class FooNeg {

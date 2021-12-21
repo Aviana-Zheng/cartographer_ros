@@ -40,6 +40,9 @@
   1.   如果该互斥量当前没有被锁住，则调用线程将该互斥量锁住，直到调用 `unlock`之前，该线程一直拥有该锁。
   2.   如果当前互斥量被其他线程锁住，则当前的调用线程被阻塞住。
   3.  如果当前互斥量被当前调用线程锁住，则会产生死锁(`deadlock`)。
+
+死锁的规范定义：集合中的每一个进程都在等待只能由本集合中的其他进程才能引发的事件，那么该组进程是死锁的。
+
 - `unlock()`， 解锁，释放对互斥量的所有权。
 - `try_lock()`，尝试锁住互斥量，如果互斥量被其他线程占有，则当前线程也不会被阻塞。线程调用该函数也会出现下面 3 种情况:
   1.  如果当前互斥量没有被其他线程占有，则该线程锁住互斥量，直到该线程调用 `unlock `释放互斥量。
@@ -75,6 +78,87 @@ int main (int argc, const char* argv[]) {
 
     return 0;
 }
+```
+
+`launch.json`:
+
+```c++
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "preLaunchTask": "build",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
+```
+
+`tasks.json`:
+
+```c++
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-std=c++11",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}",
+                "-lpthread"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ],
+    "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        //"panel": "shared",
+        //"showReuseMessage": true,
+        //"clear": false
+    }
+}
+```
+
+
+
+输出为：
+
+```c++
+29456 successful increases of the counter.
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-cgvyykto.pwq" 1>"/tmp/Microsoft-MIEngine-Out-wulvgl0n.sre"
+
+Press any key to continue...
 ```
 
 
@@ -125,6 +209,223 @@ int main ()
 }
 ```
 
+输出为：
+
+10个线程：
+
+```c++
+------------------------------------*
+----------------------------------------*
+-----------------------------------*
+------------------------------*
+-------------------------*
+--------------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-frac4zx4.3nt" 1>"/tmp/Microsoft-MIEngine-Out-jcanzlt3.muz"
+
+Press any key to continue...
+```
+
+9个线程：
+
+```c++
+--------------------------------*
+-----------------------------------*
+------------------------------*
+-------------------------*
+--------------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-bupazn3s.hlf" 1>"/tmp/Microsoft-MIEngine-Out-u12fzff1.yik"
+
+Press any key to continue...
+```
+
+8个线程：
+
+```c++
+----------------------------*
+------------------------------*
+-------------------------*
+--------------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-twodu3ti.flx" 1>"/tmp/Microsoft-MIEngine-Out-mfidyhnk.ksy"
+
+Press any key to continue...
+```
+
+
+
+7个线程：
+
+```c++
+------------------------*
+-------------------------*
+--------------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-y1uqu0wr.2on" 1>"/tmp/Microsoft-MIEngine-Out-ki01snj3.dxq"
+
+Press any key to continue...
+```
+
+
+
+6个线程：
+
+```c++
+--------------------*
+--------------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-1sxct0jk.kgb" 1>"/tmp/Microsoft-MIEngine-Out-zorp01b1.q0y"
+
+Press any key to continue...
+```
+
+
+
+5个线程：
+
+```c++
+----------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-pp1py3t0.5kw" 1>"/tmp/Microsoft-MIEngine-Out-rm1vyjds.nva"
+
+Press any key to continue...
+```
+
+
+
+4个线程：
+
+```c++
+------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-cgl5vioq.zbt" 1>"/tmp/Microsoft-MIEngine-Out-dgjjrz34.dju"
+
+Press any key to continue...
+```
+
+
+
+3个线程：
+
+```c++
+--------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-ch25clza.yyq" 1>"/tmp/Microsoft-MIEngine-Out-ihlaam14.3mq"
+
+Press any key to continue...
+```
+
+
+
+2个线程：
+
+```c++
+----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-xi2bdtd3.ulw" 1>"/tmp/Microsoft-MIEngine-Out-2jkeewdg.5lp"
+
+Press any key to continue...
+```
+
+
+
+1个线程：
+
+```c++
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-xl2pbizb.4oe" 1>"/tmp/Microsoft-MIEngine-Out-0532azfm.bzz"
+
+Press any key to continue...
+```
+
+修改代码如下：
+
+```c++
+#include <iostream>       // std::cout
+#include <chrono>         // std::chrono::milliseconds
+#include <thread>         // std::thread
+#include <mutex>          // std::timed_mutex
+
+std::timed_mutex mtx;
+
+void fireworks(int n) {
+  // waiting to get a lock: each thread prints "-" every 200ms:
+  // 在这一段时间范围之内线程如果没有获得锁则被阻塞住
+  while (!mtx.try_lock_for(std::chrono::milliseconds(200))) {
+    std::cout << "hello thread " << n << "-" <<  std::endl;
+  }
+  // got a lock! - wait for 1s, then this thread prints "*"
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  std::cout << "hello thread " << n << "*\n" << std::endl;
+  mtx.unlock();
+}
+
+int main ()
+{
+  std::thread threads[3];
+  // spawn 10 threads:
+  for (int i=0; i<3; ++i)
+    threads[i] = std::thread(fireworks, i + 1);
+
+  for (auto& th : threads) th.join();
+
+  return 0;
+}
+```
+
+输出结果如下：
+
+```c++
+hello thread 2-
+hello thread 3-
+hello thread 2-
+hello thread 3-
+hello thread 2-
+hello thread 3-
+hello thread 2-
+hello thread 3-
+hello thread 1*
+
+hello thread 3-
+hello thread 3-
+hello thread 3-
+hello thread 3-
+hello thread 3-
+hello thread 2*
+
+hello thread 3*
+
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-eoijip5y.pwe" 1>"/tmp/Microsoft-MIEngine-Out-auzajx2s.i10"
+
+Press any key to continue...
+```
+
+
+
+
+
 ### std::recursive_timed_mutex 介绍
 
 和` std:recursive_mutex `与 `std::mutex `的关系一样，`std::recursive_timed_mutex `的特性也可以从` std::timed_mutex` 推导出来，感兴趣的同鞋可以自行查阅。
@@ -148,10 +449,13 @@ void print_even (int x) {
 
 void print_thread_id (int id) {
     try {
+        // 这里的程序代码完成真正复杂的计算工作，这些代码在执行过程中
+　　　　 // 有可能抛出DataType1、DataType2和DataType3类型的异常对象。
         // using a local lock_guard to lock mtx guarantees unlocking on destruction / exception:
         std::lock_guard<std::mutex> lck (mtx);
         print_even(id);
     }
+    // catch 捕获多种数据类型的异常对象
     catch (std::logic_error&) {
         std::cout << "[exception caught]\n";
     }
@@ -169,6 +473,26 @@ int main ()
     return 0;
 }
 ```
+
+输出为：
+
+```c++
+[exception caught]
+2 is even
+[exception caught]
+4 is even
+[exception caught]
+6 is even
+[exception caught]
+8 is even
+[exception caught]
+10 is even
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-cagqtm4d.3gg" 1>"/tmp/Microsoft-MIEngine-Out-dkazeulj.dm0"
+
+Press any key to continue...
+```
+
+
 
 ### std::unique_lock 介绍
 
@@ -200,6 +524,16 @@ int main ()
 
     return 0;
 }
+```
+
+输出为：
+
+```c++
+**************************************************
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-3wcraprx.dqj" 1>"/tmp/Microsoft-MIEngine-Out-r0nlyqop.113"
+
+Press any key to continue...
 ```
 
 
@@ -317,6 +651,26 @@ int main ()
 }
 ```
 
+输出为：
+
+```c++
+thread #1
+thread #2
+thread #3
+thread #4
+thread #5
+thread #6
+thread #7
+thread #8
+thread #9
+thread #10
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-yenkyjhg.vdw" 1>"/tmp/Microsoft-MIEngine-Out-nqshqqdb.b00"
+
+Press any key to continue...
+```
+
+
+
 在 `print_thread_id `中，我们首先对 `mtx` 进行上锁操作(`mtx.lock()`;)，然后用 `mtx` 对象构造一个` lock_guard `对象(`std::lock_guard<std::mutex> lck(mtx, std::adopt_lock)`;)，注意此时 `Tag` 参数为` std::adopt_lock`，表明当前线程已经获得了锁，此后` mtx` 对象的解锁操作交由 `lock_guard` 对象` lck` 来管理，在` lck `的生命周期结束之后，`mtx` 对象会自动解锁。
 
 `lock_guard `最大的特点就是安全易于使用，请看下面例子([参考](http://www.cplusplus.com/reference/mutex/lock_guard/))，在异常抛出的时候通过` lock_guard `对象管理的 `Mutex `可以得到正确地解锁。
@@ -357,6 +711,26 @@ int main ()
   return 0;
 }
 ```
+
+输出为：
+
+```c++
+[exception caught]
+2 is even
+[exception caught]
+4 is even
+[exception caught]
+6 is even
+[exception caught]
+8 is even
+[exception caught]
+10 is even
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-3b50addl.mbm" 1>"/tmp/Microsoft-MIEngine-Out-mubf5lmx.1tt"
+
+Press any key to continue...
+```
+
+
 
 ## std::unique_lock 介绍
 
@@ -468,6 +842,18 @@ int main ()
 }
 ```
 
+输出为：
+
+```c++
+task a
+task b
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-ijy5qbd5.puh" 1>"/tmp/Microsoft-MIEngine-Out-w1ef0g4i.kuf"
+
+Press any key to continue...
+```
+
+
+
 ### std::unique_lock 移动(move assign)赋值操作
 
 `std::unique_lock `支持移动赋值(`move assignment`)，但是普通的赋值被禁用了，
@@ -509,6 +895,18 @@ int main ()
 }
 ```
 
+输出为：
+
+```c++
+**************************************************
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-cdn5cipv.w3l" 1>"/tmp/Microsoft-MIEngine-Out-5uaiqljo.wsu"
+
+Press any key to continue...
+```
+
+
+
 ### std::unique_lock 主要成员函数
 
 本节我们来看看 std::unique_lock 的主要成员函数。由于` std::unique_lock `比 `std::lock_guard `操作灵活，因此它提供了更多成员函数。具体分类如下：
@@ -517,7 +915,7 @@ int main ()
 2. 修改操作：移动赋值(`move assignment`)(前面已经介绍过了)，交换(`swap`)（与另一个 `std::unique_lock`  对象交换它们所管理的` Mutex` 对象的所有权），释放(`release`)（返回指向它所管理的` Mutex `对象的指针，并释放所有权）
 3. 获取属性操作：`owns_lock`（返回当前 `std::unique_lock `对象是否获得了锁）、`operator bool()`与  `owns_lock `功能相同，返回当前 `std::unique_lock` 对象是否获得了锁）、`mutex`（返回当前  `std::unique_lock `对象所管理的` Mutex` 对象的指针）。
 
-#### **std::unique_lock::lock**请看下面例子([参考](http://www.cplusplus.com/reference/mutex/unique_lock/lock/))：
+#### **std::unique_lock::lock**
 
 上锁操作，调用它所管理的` Mutex `对象的 `lock `函数。如果在调用 `Mutex `对象的 `lock `函数时该` Mutex `对象已被另一线程锁住，则当前线程会被阻塞，直到它获得了锁。
 
@@ -551,6 +949,68 @@ int main ()
   return 0;
 }
 ```
+
+输出为：
+
+```c++
+thread #1
+thread #6
+thread #4
+thread #3
+thread #5
+thread #2
+thread #7
+thread #8
+thread #9
+thread #10
+```
+
+
+
+#### **std::unique_lock::try_lock**
+
+上锁操作，调用它所管理的 Mutex 对象的 try_lock 函数，如果上锁成功，则返回 true，否则返回 false。
+
+请看下面例子([参考](http://www.cplusplus.com/reference/mutex/unique_lock/try_lock/))：
+
+```c++
+#include <iostream>       // std::cout
+#include <vector>         // std::vector
+#include <thread>         // std::thread
+#include <mutex>          // std::mutex, std::unique_lock, std::defer_lock
+
+std::mutex mtx;           // mutex for critical section
+
+void print_star () {
+  std::unique_lock<std::mutex> lck(mtx,std::defer_lock);
+  // print '*' if successfully locked, 'x' otherwise: 
+  if (lck.try_lock())
+    std::cout << '*';
+  else                    
+    std::cout << 'x';
+}
+
+int main ()
+{
+  std::vector<std::thread> threads;
+  for (int i=0; i<500; ++i)
+    threads.emplace_back(print_star);
+
+  for (auto& x: threads) x.join();
+
+  return 0;
+}
+```
+
+输出为：
+
+```c++
+*x******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-bji4h5ly.qi2" 1>"/tmp/Microsoft-MIEngine-Out-ewqqjkac.ca3"
+
+Press any key to continue...
+```
+
+
 
 #### **std::unique_lock::try_lock_for**
 
@@ -590,6 +1050,26 @@ int main ()
 }
 ```
 
+输出为：
+
+```c++
+------------------------------------*
+----------------------------------------*
+-----------------------------------*
+------------------------------*
+-------------------------*
+--------------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-bq3zshtq.rzm" 1>"/tmp/Microsoft-MIEngine-Out-ljgo4ncc.osg"
+
+Press any key to continue...
+```
+
+
+
 #### **std::unique_lock::try_lock_until**
 
 上锁操作，调用它所管理的 Mutex 对象的 try_lock_for 函数，如果上锁成功，则返回 true，否则返回 false。
@@ -628,6 +1108,26 @@ int main ()
 }
 ```
 
+输出为：
+
+```c++
+------------------------------------*
+----------------------------------------*
+-----------------------------------*
+------------------------------*
+-------------------------*
+--------------------*
+---------------*
+----------*
+-----*
+*
+[1] + Done                       "/usr/bin/gdb" --interpreter=mi --tty=${DbgTerm} 0<"/tmp/Microsoft-MIEngine-In-bq3zshtq.rzm" 1>"/tmp/Microsoft-MIEngine-Out-ljgo4ncc.osg"
+
+Press any key to continue...
+```
+
+
+
 #### **std::unique_lock::unlock**
 
 解锁操作，调用它所管理的 Mutex 对象的 unlock 函数。
@@ -661,6 +1161,23 @@ int main ()
   return 0;
 }
 ```
+
+输出为：
+
+```c++
+thread #1
+thread #6
+thread #7
+thread #3
+thread #4
+thread #2
+thread #8
+thread #9
+thread #10
+thread #5
+```
+
+
 
 #### **std::unique_lock::release**
 
@@ -700,6 +1217,23 @@ int main ()
 }
 ```
 
+输出为：
+
+```c++
+count: 1
+count: 2
+count: 3
+count: 4
+count: 5
+count: 6
+count: 7
+count: 8
+count: 9
+count: 10
+```
+
+
+
 #### **std::unique_lock::owns_lock**
 
 返回当前 std::unique_lock 对象是否获得了锁。
@@ -735,7 +1269,18 @@ int main ()
 }
 ```
 
+输出为(每一次都不一样)：
+
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
+***x**x****************************************************************************************************************************x***********************************x********************************************************************************************************************************************************************************************************************************************************************************************************************************************
+zy@zy-OMEN:~/Desktop/temp$ 
+```
+
+
+
 #### std::unique_lock::operator bool()
+
 与 owns_lock 功能相同，返回当前 std::unique_lock 对象是否获得了锁。
 
 请看下面例子([参考](http://www.cplusplus.com/reference/mutex/unique_lock/operator_bool/))：
@@ -769,7 +1314,18 @@ int main ()
 }
 ```
 
+输出为：
+
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
+***x***x********************x*********************************x********************************************************************************************************************************************x********************************************************************************************************************************************************************************************************************************************************************************************************
+zy@zy-OMEN:~/Desktop/temp$
+```
+
+
+
 #### std::unique_lock::mutex
+
 返回当前 std::unique_lock 对象所管理的 Mutex 对象的指针。
 
 请看下面例子([参考](http://www.cplusplus.com/reference/mutex/unique_lock/mutex/))：
@@ -804,6 +1360,23 @@ int main ()
 
   return 0;
 }
+```
+
+输出为：
+
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
+thread #1 locked mutex 101
+thread #6 locked mutex 101
+thread #7 locked mutex 101
+thread #2 locked mutex 101
+thread #5 locked mutex 101
+thread #4 locked mutex 101
+thread #3 locked mutex 101
+thread #8 locked mutex 101
+thread #9 locked mutex 101
+thread #10 locked mutex 101
+zy@zy-OMEN:~/Desktop/temp$ 
 ```
 
 
@@ -869,19 +1442,20 @@ int main()
 
 执行结果如下：
 
-```c++
-concurrency ) ./ConditionVariable-basic1 
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
 10 threads ready to race...
-thread 1
-thread 0
+thread 8
 thread 2
-thread 3
-thread 4
-thread 5
 thread 6
 thread 7
-thread 8
 thread 9
+thread 5
+thread 1
+thread 0
+thread 4
+thread 3
+zy@zy-OMEN:~/Desktop/temp$ 
 ```
 
 好了，对条件变量有了一个基本的了解之后，我们来看看` std::condition_variable `的各个成员函数。
@@ -962,8 +1536,8 @@ int main()
 
 程序执行结果如下：
 
-```c++
-concurrency ) ./ConditionVariable-wait 
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
 1
 2
 3
@@ -974,6 +1548,7 @@ concurrency ) ./ConditionVariable-wait
 8
 9
 10
+zy@zy-OMEN:~/Desktop/temp$ 
 ```
 
 ## **std::condition_variable::wait_for() 介绍**
@@ -1028,6 +1603,18 @@ int main ()
     return 0;
 }
 ```
+
+输出为：
+
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
+Please, enter an integer (I'll be printing dots): 
+.4
+You entered: 4
+zy@zy-OMEN:~/Desktop/temp$ 
+```
+
+
 
 ## **std::condition_variable::wait_until 介绍**
 
@@ -1100,6 +1687,78 @@ int main()
 }
 ```
 
+上述代码运行失败，陷入一直等待wait中，修改代码后发现`producers``cv.notify_one();`唤醒了多个线程
+
+修改代码为：
+
+```c++
+#include <iostream>                // std::cout
+#include <thread>                // std::thread
+#include <mutex>                // std::mutex, std::unique_lock
+#include <condition_variable>    // std::condition_variable
+
+std::mutex mtx;
+std::condition_variable cv;
+
+int cargo = 0; // shared value by producers and consumers
+
+void consumer(int idc)
+{
+    std::unique_lock < std::mutex > lck(mtx);
+    while (cargo == 0)
+        cv.wait(lck);
+    std::cout << idc << "," << cargo << '\n';
+    // cargo = 0;
+}
+
+void producer(int id)
+{
+    std::unique_lock < std::mutex > lck(mtx);
+    cargo = id;
+    cv.notify_one();
+}
+
+int main()
+{
+    std::thread consumers[10], producers[10];
+
+    // spawn 10 consumers and 10 producers:
+    for (int i = 0; i < 10; ++i) {
+        consumers[i] = std::thread(consumer, i + 1);
+        producers[i] = std::thread(producer, i + 1);
+    }
+
+    // join them back:
+    for (int i = 0; i < 10; ++i) {
+        producers[i].join();
+        consumers[i].join();
+    }
+
+    return 0;
+}
+```
+
+
+
+输出如下:
+
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
+2,1
+3,1
+5,4
+1,4
+6,2
+4,2
+7,6
+8,7
+9,8
+10,9
+zy@zy-OMEN:~/Desktop/temp$ 
+```
+
+
+
 ## **std::condition_variable::notify_all() 介绍**
 
 唤醒所有的等待(wait)线程。如果当前没有等待线程，则该函数什么也不做。请看下面的例子：
@@ -1146,6 +1805,26 @@ int main()
     return 0;
 }
 ```
+
+输出为：
+
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
+10 threads ready to race...
+thread 9
+thread 3
+thread 1
+thread 6
+thread 5
+thread 0
+thread 2
+thread 4
+thread 7
+thread 8
+zy@zy-OMEN:~/Desktop/temp$ 
+```
+
+
 
 ##  std::condition_variable_any 介绍
 
@@ -1206,6 +1885,26 @@ int main ()
   return 0;
 }
 ```
+
+输出为：
+
+```shell
+zy@zy-OMEN:~/Desktop/temp$ ./test 
+10 threads ready to race...
+thread 5
+thread 1
+thread 2
+thread 8
+thread 6
+thread 9
+thread 3
+thread 7
+thread 4
+thread 0
+zy@zy-OMEN:~/Desktop/temp$ 
+```
+
+
 
 好了，到此为止，<condition_variable> 头文件中的两个条件变量类（std::condition_variable 和  std::condition_variable_any）、枚举类型（std::cv_status）、以及辅助函数（std::notify_all_at_thread_exit()）都已经介绍完了。
 

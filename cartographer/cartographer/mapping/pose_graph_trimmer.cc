@@ -25,6 +25,7 @@ namespace mapping {
 PureLocalizationTrimmer::PureLocalizationTrimmer(const int trajectory_id,
                                                  const int num_submaps_to_keep)
     : trajectory_id_(trajectory_id), num_submaps_to_keep_(num_submaps_to_keep) {
+  // 至少保留3个submap，保留数量需要传参
   CHECK_GE(num_submaps_to_keep, 3);
 }
 

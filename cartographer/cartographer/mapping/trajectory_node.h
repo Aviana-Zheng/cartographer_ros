@@ -47,7 +47,7 @@ ConstantData类：
 */
 struct TrajectoryNode {
   struct Data {
-    common::Time time;
+    common::Time time;  // 记录了扫描数据被插入子图的时刻
 
     // Range data in 'pose' frame. Only used in the 2D case.
     sensor::RangeData range_data_2d;   //测量得到的2D range数据
@@ -58,7 +58,7 @@ struct TrajectoryNode {
     // Transform from the 3D 'tracking' frame to the 'pose' frame of the range
     // data, which contains roll, pitch and height for 2D. In 3D this is always
     // identity.
-    transform::Rigid3d tracking_to_pose;    //涉及的3D变换
+    transform::Rigid3d tracking_to_pose;    // 节点在子图中的相对位姿
   };
 
   common::Time time() const { return constant_data->time; }
@@ -70,7 +70,7 @@ struct TrajectoryNode {
   //常指针.指向某块内存,该内存块的数据不变，指针本身可以变。
   std::shared_ptr<const Data> constant_data;
 
-  transform::Rigid3d pose;
+  transform::Rigid3d pose; // 节点的全局位姿
 };
 
 }  // namespace mapping
