@@ -36,6 +36,7 @@ class RangeDataInserter {
   RangeDataInserter& operator=(const RangeDataInserter&) = delete;
 
   // Inserts 'range_data' into 'hybrid_grid'.
+  // 参1：激光数据  ， 参2：概率网格范围数据插入器2D
   void Insert(const sensor::RangeData& range_data,
               HybridGrid* hybrid_grid) const;
 

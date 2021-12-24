@@ -28,6 +28,10 @@ CeresPose::CeresPose(
                      rigid.translation().z()}}),
       rotation_({{rigid.rotation().w(), rigid.rotation().x(),
                   rigid.rotation().y(), rigid.rotation().z()}}) {
+  // std::unique_ptr， 独占所指向的对象,这种所有权仅能够通过std::move函数来转移。
+  // 调用release 会切断unique_ptr 和它原来管理的对象的联系。
+  // release 返回的指针通常被用来初始化另一个智能指针或给另一个智能指针赋值。
+  // 如果不用另一个智能指针来保存release返回的指针，程序就要负责资源的释放。
   problem->AddParameterBlock(translation_.data(), 3,
                              translation_parametrization.release());
   problem->AddParameterBlock(rotation_.data(), 4,
@@ -36,9 +40,9 @@ CeresPose::CeresPose(
 
 const transform::Rigid3d CeresPose::ToRigid() const {
   return transform::Rigid3d(
-      Eigen::Map<const Eigen::Vector3d>(translation_.data()),
+      Eigen::Map<const Eigen::Vector3d>(translation_.data()), // vector
       Eigen::Quaterniond(rotation_[0], rotation_[1], rotation_[2],
-                         rotation_[3]));
+                         rotation_[3])); //Quaternion
 }
 
 }  // namespace mapping_3d

@@ -32,32 +32,37 @@
 #include "cartographer/transform/transform.h"
 #include "glog/logging.h"
 
+// 低分辨率栅格可以认为对应整数部分，高分辨率栅格可以认为对应小数部分，以降低精度在计算中的损耗。
 namespace cartographer {
 namespace mapping_3d {
 
 // Converts an 'index' with each dimension from 0 to 2^'bits' - 1 to a flat
-// z-major index.
+// z-major index.  将平面 z 主“索引”转换为 3 维索引，每个维度从 0 到 2^'bits' - 1。 
+// 使用int存储三维数据
 inline int ToFlatIndex(const Eigen::Array3i& index, const int bits) {
   DCHECK((index >= 0).all() && (index < (1 << bits)).all()) << index;
   return (((index.z() << bits) + index.y()) << bits) + index.x();
 }
 
 // Converts a flat z-major 'index' to a 3-dimensional index with each dimension
-// from 0 to 2^'bits' - 1.
+// from 0 to 2^'bits' - 1.  将平面 z 主“索引”转换为 3 维索引，每个维度从 0 到 2^'bits' - 1。 
+// 将int转换为三维格式存储
 inline Eigen::Array3i To3DIndex(const int index, const int bits) {
   DCHECK_LT(index, 1 << (3 * bits));
-  const int mask = (1 << bits) - 1;
+  const int mask = (1 << bits) - 1; // bits个1
+  // 按位与，依次获得x,y,z
   return Eigen::Array3i(index & mask, (index >> bits) & mask,
                         (index >> bits) >> bits);
 }
 
 // A function to compare value to the default value. (Allows specializations).
+// 将值与默认值进行比较的函数。 （允许特殊化）。 
 template <typename TValueType>
 bool IsDefaultValue(const TValueType& v) {
   return v == TValueType();
 }
 
-// Specialization to compare a std::vector to the default value.
+// Specialization to compare a std::vector to the default value.  判断vector是否为空
 template <typename TElementType>
 bool IsDefaultValue(const std::vector<TElementType>& v) {
   return v.empty();
@@ -100,6 +105,7 @@ class FlatGrid {
    public:
     Iterator() : current_(nullptr), end_(nullptr) {}
 
+    // array::data()是C++ STL中的内置函数，该函数返回指向数组对象中第一个元素的指针。
     explicit Iterator(const FlatGrid& flat_grid)
         : current_(flat_grid.cells_.data()),
           end_(flat_grid.cells_.data() + flat_grid.cells_.size()) {
@@ -134,11 +140,12 @@ class FlatGrid {
   };
 
  private:
+  // template <class T，size_t N> class array;
   std::array<ValueType, 1 << (3 * kBits)> cells_;
 };
 
 // A grid consisting of '2^kBits' x '2^kBits' x '2^kBits' grids of type
-// 'WrappedGrid'. Wrapped grids are constructed on first access via
+// 'WrappedGrid'. Wrapped（包装） grids are constructed on first access via
 // 'mutable_value()'.
 template <typename WrappedGrid, int kBits>
 class NestedGrid {
@@ -152,11 +159,15 @@ class NestedGrid {
   // between 0 and grid_size() - 1.
   ValueType value(const Eigen::Array3i& index) const {
     const Eigen::Array3i meta_index = GetMetaIndex(index);
+    // array::get()是C++ STL中的内置函数，该函数返回对数组容器的第i个元素的引用。
     const WrappedGrid* const meta_cell =
         meta_cells_[ToFlatIndex(meta_index, kBits)].get();
     if (meta_cell == nullptr) {
       return ValueType();
     }
+    // meta_index * WrappedGrid::grid_size() = 
+    // index / WrappedGrid::grid_size() * WrappedGrid::grid_size();  有精度丢失
+    // 再细化元胞内的位置并返回
     const Eigen::Array3i inner_index =
         index - meta_index * WrappedGrid::grid_size();
     return meta_cell->value(inner_index);
@@ -186,15 +197,18 @@ class NestedGrid {
         : current_(nested_grid.meta_cells_.data()),
           end_(nested_grid.meta_cells_.data() + nested_grid.meta_cells_.size()),
           nested_iterator_() {
+      // 对nested_iterator_进行初始化，并迭代完成
       AdvanceToValidNestedIterator();
     }
 
     void Next() {
       DCHECK(!Done());
       nested_iterator_.Next();
+      // 判断迭代是否异常，异常则返回
       if (!nested_iterator_.Done()) {
         return;
       }
+      // 外层低分辨率next，再完成nested_iterator_的迭代
       ++current_;
       AdvanceToValidNestedIterator();
     }
@@ -204,6 +218,7 @@ class NestedGrid {
     Eigen::Array3i GetCellIndex() const {
       DCHECK(!Done());
       const int index = (1 << (3 * kBits)) - (end_ - current_);
+      // 元胞低分辨率x,y,z乘以转换倍数，再加上细化的高分辨栅格中的δx,δy,δz
       return To3DIndex(index, kBits) * WrappedGrid::grid_size() +
              nested_iterator_.GetCellIndex();
     }
@@ -214,10 +229,14 @@ class NestedGrid {
     }
 
    private:
+    // 对nested_iterator_进行初始化，并迭代完成
     void AdvanceToValidNestedIterator() {
+      // 低分辨率元胞迭代
       for (; !Done(); ++current_) {
         if (*current_ != nullptr) {
+          // 开始内层高分辨率迭代
           nested_iterator_ = typename WrappedGrid::Iterator(**current_);
+          // 判断迭代是否异常，异常则终止循环
           if (!nested_iterator_.Done()) {
             break;
           }
@@ -231,8 +250,8 @@ class NestedGrid {
   };
 
  private:
-  // Returns the Eigen::Array3i (meta) index of the meta cell containing
-  // 'index'.
+  // Returns the Eigen::Array3i (meta) index of the meta(元) cell containing
+  // 'index'.  返回元胞位置，分辨率较低
   Eigen::Array3i GetMetaIndex(const Eigen::Array3i& index) const {
     DCHECK((index >= 0).all()) << index;
     const Eigen::Array3i meta_index = index / WrappedGrid::grid_size();
@@ -245,8 +264,8 @@ class NestedGrid {
 
 // A grid consisting of 2x2x2 grids of type 'WrappedGrid' initially. Wrapped
 // grids are constructed on first access via 'mutable_value()'. If necessary,
-// the grid grows to twice the size in each dimension. The range of indices is
-// (almost) symmetric around the origin, i.e. negative indices are allowed.
+// the grid grows to twice the size in each dimension. The range of indices(索引) is
+// (almost) symmetric(对称) around the origin(原点), i.e. negative(负) indices are allowed.
 template <typename WrappedGrid>
 class DynamicGrid {
  public:
@@ -261,6 +280,7 @@ class DynamicGrid {
 
   // Returns the value stored at 'index'.
   ValueType value(const Eigen::Array3i& index) const {
+    // 确保shifted_index的x,y,z都大于0，  negative(负) indices are allowed.
     const Eigen::Array3i shifted_index = index + (grid_size() >> 1);
     // The cast to unsigned is for performance to check with 3 comparisons
     // shifted_index.[xyz] >= 0 and shifted_index.[xyz] < grid_size.
@@ -409,7 +429,7 @@ class DynamicGrid {
 template <typename ValueType>
 using Grid = DynamicGrid<NestedGrid<FlatGrid<ValueType, 3>, 3>>;
 
-// Represents a 3D grid as a wide, shallow tree.
+// Represents a 3D grid as a wide, shallow tree. 将 3D 网格表示为一棵宽而浅的树。 
 template <typename ValueType>
 class HybridGridBase : public Grid<ValueType> {
  public:
@@ -417,7 +437,8 @@ class HybridGridBase : public Grid<ValueType> {
 
   // Creates a new tree-based probability grid with voxels having edge length
   // 'resolution' around the origin which becomes the center of the cell at
-  // index (0, 0, 0).
+  // index (0, 0, 0).  创建一个新的基于树的概率网格，
+  // 其中体素具有围绕原点的边缘长度“分辨率”，原点成为索引 (0, 0, 0) 处的单元格中心。 
   explicit HybridGridBase(const float resolution) : resolution_(resolution) {}
 
   float resolution() const { return resolution_; }
@@ -425,6 +446,7 @@ class HybridGridBase : public Grid<ValueType> {
   // Returns the index of the cell containing the 'point'. Indices are integer
   // vectors identifying cells, for this the coordinates are rounded to the next
   // multiple of the resolution.
+  // 返回包含“点”的单元格的索引。 索引是标识单元格的整数向量，为此，坐标四舍五入为分辨率的下一个倍数。 
   Eigen::Array3i GetCellIndex(const Eigen::Vector3f& point) const {
     // .array()函数将它们转化为Array对象
     // Array类提供了更为一般的数组功能。Array类为元素级的操作提供了有效途径，
@@ -435,7 +457,7 @@ class HybridGridBase : public Grid<ValueType> {
                           common::RoundToInt(index.z()));
   }
 
-  // Returns one of the octants, (0, 0, 0), (1, 0, 0), ..., (1, 1, 1).
+  // Returns one of the octants(八分圆), (0, 0, 0), (1, 0, 0), ..., (1, 1, 1).
   static Eigen::Array3i GetOctant(const int i) {
     DCHECK_GE(i, 0);
     DCHECK_LT(i, 8);
@@ -463,7 +485,7 @@ class HybridGridBase : public Grid<ValueType> {
 };
 
 // A grid containing probability values stored using 15 bits, and an update
-// marker per voxel.
+// marker per voxel. 包含使用 15 位存储的概率值的网格，以及每个体素的更新标记。 
 class HybridGrid : public HybridGridBase<uint16> {
  public:
   explicit HybridGrid(const float resolution)
@@ -499,11 +521,14 @@ class HybridGrid : public HybridGridBase<uint16> {
 
   // Applies the 'odds' specified when calling ComputeLookupTableToApplyOdds()
   // to the probability of the cell at 'index' if the cell has not already been
-  // updated. Multiple updates of the same cell will be ignored until
+  // updated. 如果单元格尚未更新，则将调用 ComputeLookupTableToApplyOdds() 时
+  // 指定的“odds”应用于“index”单元格的概率。
+  // Multiple updates of the same cell will be ignored until
   // StartUpdate() is called. Returns true if the cell was updated.
   //
   // If this is the first call to ApplyOdds() for the specified cell, its value
   // will be set to probability corresponding to 'odds'.
+  // 则其值将设置为与“odds”相对应的概率。  查表更新odd，不是costodd和2D不一样
   bool ApplyLookupTable(const Eigen::Array3i& index,
                         const std::vector<uint16>& table) {
     DCHECK_EQ(table.size(), mapping::kUpdateMarker);

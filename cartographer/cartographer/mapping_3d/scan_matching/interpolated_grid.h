@@ -25,13 +25,13 @@ namespace cartographer {
 namespace mapping_3d {
 namespace scan_matching {
 
-// Interpolates between HybridGrid probability voxels. We use the tricubic
-// interpolation which interpolates the values and has vanishing derivative at
-// these points.
-//
-// This class is templated to work with the autodiff that Ceres provides.
-// For this reason, it is also important that the interpolation scheme be
-// continuously differentiable.
+// Interpolates(插值) between HybridGrid probability voxels. We use the tricubic(三次)
+// interpolation which interpolates the values and has vanishing(消失) derivative(导数) at
+// these points.               在 HybridGrid 概率体素之间进行插值。 我们使用三次插值，
+// 它对值进行插值并在这些点处具有消失的导数。
+// This class is templated(模板) to work with the autodiff(自动求导) that Ceres provides.
+// For this reason, it is also important that the interpolation scheme(方案) be
+// continuously(持续) differentiable(可微的).
 class InterpolatedGrid {
  public:
   explicit InterpolatedGrid(const HybridGrid& hybrid_grid)
@@ -41,17 +41,20 @@ class InterpolatedGrid {
   InterpolatedGrid& operator=(const InterpolatedGrid&) = delete;
 
   // Returns the interpolated probability at (x, y, z) of the HybridGrid
-  // used to perform the interpolation.
+  // used to perform the interpolation(修饰hybridgrid).
   //
-  // This is a piecewise, continuously differentiable function. We use the
-  // scalar part of Jet parameters to select our interval below. It is the
-  // tensor product volume of piecewise cubic polynomials that interpolate
-  // the values, and have vanishing derivative at the interval boundaries.
+  // This is a piecewise(分段的), continuously differentiable(连续可微) function. We use the
+  // scalar part of Jet parameters to select our interval(间隔，区间) below. It is the
+  // tensor(张量) product volume of piecewise cubic(立方体，三次) polynomials(多项式) that
+  // interpolate the values, and have vanishing derivative at the interval(间隔，区间) boundaries.
+  // 我们使用 Jet 参数的标量部分来选择下面的间隔。 它是对值进行插值的分段三次多项式的张量积体积，
+  // 并且在区间边界处具有消失导数。 
   template <typename T>
   T GetProbability(const T& x, const T& y, const T& z) const {
     double x1, y1, z1, x2, y2, z2;
     ComputeInterpolationDataPoints(x, y, z, &x1, &y1, &z1, &x2, &y2, &z2);
 
+    // 计算(x1, y1, z1),( x2, y2, z2)相邻的共8个栅格的概率值
     const Eigen::Array3i index1 =
         hybrid_grid_.GetCellIndex(Eigen::Vector3f(x1, y1, z1));
     const double q111 = hybrid_grid_.GetProbability(index1);
@@ -70,6 +73,7 @@ class InterpolatedGrid {
     const double q222 =
         hybrid_grid_.GetProbability(index1 + Eigen::Array3i(1, 1, 1));
 
+    // 将(x,y,z)归一化
     const T normalized_x = (x - x1) / (x2 - x1);
     const T normalized_y = (y - y1) / (y2 - y1);
     const T normalized_z = (z - z1) / (z2 - z1);
@@ -86,8 +90,10 @@ class InterpolatedGrid {
     // scheme: A * (2t^3 - 3t^2 + 1) + B * (-2t^3 + 3t^2).
     // The first polynomial is 1 at t=0, 0 at t=1, the second polynomial is 0
     // at t=0, 1 at t=1. Both polynomials have derivative zero at t=0 and t=1.
+    // q111为g1, q112为g2，可以得到q11
     const T q11 = (q111 - q112) * normalized_zzz * 2. +
                   (q112 - q111) * normalized_zz * 3. + q111;
+    // 以下同理
     const T q12 = (q121 - q122) * normalized_zzz * 2. +
                   (q122 - q121) * normalized_zz * 3. + q121;
     const T q21 = (q211 - q212) * normalized_zzz * 2. +
@@ -109,6 +115,8 @@ class InterpolatedGrid {
                                       double* x2, double* y2,
                                       double* z2) const {
     const Eigen::Vector3f lower = CenterOfLowerVoxel(x, y, z);
+    // 先求出(x,y,z)在地图中的一个栅格索引(x1, y1, z1),其中 x1 < x,y1 < y,z1 < z
+    // 再找到该索引右上方的栅格索引( x2, y2, z2),其中 x2 = x1 + 1,y2 = y1 + 1,z2 = z1 + 1
     *x1 = lower.x();
     *y1 = lower.y();
     *z1 = lower.z();

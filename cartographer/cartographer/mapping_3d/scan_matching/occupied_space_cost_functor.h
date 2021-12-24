@@ -45,6 +45,9 @@ class OccupiedSpaceCostFunctor {
   OccupiedSpaceCostFunctor(const OccupiedSpaceCostFunctor&) = delete;
   OccupiedSpaceCostFunctor& operator=(const OccupiedSpaceCostFunctor&) = delete;
 
+  // 对运算符"()"的重载
+  // 在函数的一开始，先把迭代查询的输入参数translation、rotation 
+  // 转换为坐标变换Tε用临时变量transform记录
   template <typename T>
   bool operator()(const T* const translation, const T* const rotation,
                   T* const residual) const {
@@ -59,10 +62,13 @@ class OccupiedSpaceCostFunctor {
   bool Evaluate(const transform::Rigid3<T>& transform,
                 T* const residual) const {
     for (size_t i = 0; i < point_cloud_.size(); ++i) {
+      // 将点云转换到global_map中
       const Eigen::Matrix<T, 3, 1> world =
           transform * point_cloud_[i].cast<T>();
+      // 计算对应的概率值
       const T probability =
           interpolated_grid_.GetProbability(world[0], world[1], world[2]);
+      // 由于占用栅格中原本存储的就是栅格击中的概率，所以这里查询出来的概率就是(1−Msmooth(Tεhk))
       residual[i] = scaling_factor_ * (1. - probability);
     }
     return true;

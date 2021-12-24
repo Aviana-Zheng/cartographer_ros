@@ -47,6 +47,7 @@ class InterpolatedGridTest : public ::testing::Test {
   InterpolatedGrid interpolated_grid_;
 };
 
+// x,y,z对应的索引为整数，等于索引处的概率值
 TEST_F(InterpolatedGridTest, InterpolatesGridPoints) {
   for (double z = -1.; z < 3.; z += hybrid_grid_.resolution()) {
     for (double y = 1.; y < 5.; y += hybrid_grid_.resolution()) {

@@ -37,6 +37,7 @@ class RotationDeltaCostFunctor {
   explicit RotationDeltaCostFunctor(const double scaling_factor,
                                     const Eigen::Quaterniond& initial_rotation)
       : scaling_factor_(scaling_factor) {
+    // 四元数的逆即为四元数的共轭
     initial_rotation_inverse_[0] = initial_rotation.w();
     initial_rotation_inverse_[1] = -initial_rotation.x();
     initial_rotation_inverse_[2] = -initial_rotation.y();
@@ -55,7 +56,7 @@ class RotationDeltaCostFunctor {
     ceres::QuaternionProduct(initial_rotation_inverse, rotation_quaternion,
                              delta);
     // Will compute the squared norm of the imaginary component of the delta
-    // quaternion which is sin(phi/2)^2.
+    // quaternion which is sin(phi/2)^2.  乘以权重
     residual[0] = scaling_factor_ * delta[1];
     residual[1] = scaling_factor_ * delta[2];
     residual[2] = scaling_factor_ * delta[3];

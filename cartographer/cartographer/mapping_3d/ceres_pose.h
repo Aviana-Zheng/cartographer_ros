@@ -29,6 +29,10 @@ namespace mapping_3d {
 
 class CeresPose {
  public:
+  // 参考mapping2d-->scan_matching-->ceres.md: 基于Ceres库的扫描匹配器
+  // LocalParameterization类的作用是解决非线性优化中的过参数化问题
+  // 在SLAM中，当采用四元数表示位姿时，由于四元数本身的约束（模长为1），实际的自由度为3而非4。
+  // 此时，若直接传递四元数进行优化，冗余的维数会带来计算资源的浪费
   CeresPose(
       const transform::Rigid3d& rigid,
       std::unique_ptr<ceres::LocalParameterization> translation_parametrization,

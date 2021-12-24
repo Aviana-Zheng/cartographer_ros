@@ -44,8 +44,8 @@ struct PixelData {
   float max_probability = 0.5f;
 };
 
-// We compute a slice around the xy-plane. 'transform' is applied to the rays in
-// global map frame to allow choosing an arbitrary slice.
+// We compute a slice(切片) around the xy-plane. 'transform' is applied to the rays
+// in global map frame(框架) to allow choosing an arbitrary(随意的，任意的) slice.
 void GenerateSegmentForSlice(const sensor::RangeData& range_data,
                              const transform::Rigid3f& pose,
                              const transform::Rigid3f& transform,
@@ -108,6 +108,7 @@ void GenerateSegmentForSlice(const sensor::RangeData& range_data,
   }
 }
 
+// 参考submaps-3d.md
 void UpdateFreeSpaceFromSegment(const RaySegment& segment,
                                 const std::vector<uint16>& miss_table,
                                 mapping_2d::ProbabilityGrid* result) {
@@ -117,24 +118,30 @@ void UpdateFreeSpaceFromSegment(const RaySegment& segment,
       segment.to.x(), segment.to.y());
   bool large_delta_y =
       std::abs(to.y() - from.y()) > std::abs(to.x() - from.x());
+  // 保证δx比δy大
   if (large_delta_y) {
     std::swap(from.x(), from.y());
     std::swap(to.x(), to.y());
   }
+  // 保证x递增
   if (from.x() > to.x()) {
     std::swap(from, to);
   }
   const int dx = to.x() - from.x();
   const int dy = std::abs(to.y() - from.y());
+  // 利用error来判断是否超过一格，除以dx比较好理解，error' = 1/2
   int error = dx / 2;
+  // 若to的y比from的y大,y依次加1，若to的y比from的y小,y依次减1
   const int direction = (from.y() < to.y()) ? 1 : -1;
 
   for (; from.x() < to.x(); ++from.x()) {
-    if (large_delta_y) {
+    if (large_delta_y) { // 前面互换了x,y，所以需要再换回来
       result->ApplyLookupTable(Eigen::Array2i(from.y(), from.x()), miss_table);
     } else {
       result->ApplyLookupTable(from, miss_table);
     }
+    // 更新from
+    // 即error' = 1/2 - dy/dx，即x方向挪动一格，y方向增加了多少
     error -= dy;
     if (error < 0) {
       from.y() += direction;
@@ -159,6 +166,7 @@ void InsertSegmentsIntoProbabilityGrid(const std::vector<RaySegment>& segments,
     max = max.cwiseMax(segment.from);
     max = max.cwiseMax(segment.to);
   }
+  // padding 填充，可以理解为缓冲
   const float padding = 10. * result->limits().resolution();
   max += Eigen::Vector2f(padding, padding);
   min -= Eigen::Vector2f(padding, padding);
@@ -252,8 +260,8 @@ std::vector<Eigen::Array4i> ExtractVoxelData(
   return voxel_indices_and_probabilities;
 }
 
-// Builds texture data containing interleaved value and alpha for the
-// visualization from 'accumulated_pixel_data'.
+// Builds texture(质地，纹理) data containing interleaved(交错) value and alpha for the
+// visualization(可视化) from 'accumulated_pixel_data'.
 string ComputePixelValues(
     const std::vector<PixelData>& accumulated_pixel_data) {
   string cell_data;
@@ -261,25 +269,32 @@ string ComputePixelValues(
   constexpr float kMinZDifference = 3.f;
   constexpr float kFreeSpaceWeight = 0.15f;
   for (const PixelData& pixel : accumulated_pixel_data) {
-    // TODO(whess): Take into account submap rotation.
-    // TODO(whess): Document the approach and make it more independent from the
-    // chosen resolution.
+    // TODO(whess哇哦): Take into account submap rotation.
+    // TODO(whess): Document(记录) the approach and make it more independent(独立) from 
+    // the chosen resolution.
     const float z_difference = pixel.count > 0 ? pixel.max_z - pixel.min_z : 0;
     if (z_difference < kMinZDifference) {
       cell_data.push_back(0);  // value
       cell_data.push_back(0);  // alpha
       continue;
     }
+    // free的权重
     const float free_space = std::max(z_difference - pixel.count, 0.f);
     const float free_space_weight = kFreeSpaceWeight * free_space;
+    // 总权重
     const float total_weight = pixel.count + free_space_weight;
+    // free的概率
     const float free_space_probability = 1.f - pixel.max_probability;
+    // 将平均概率限制在0.1至0.9之间
+    // 平均概率 = （此栅格returnn点概率之和 + 此栅格free概率 * free权重）/ {此栅格中return点个数 与 此栅格free权重之和}
     const float average_probability = mapping::ClampProbability(
         (pixel.probability_sum + free_space_probability * free_space_weight) /
         total_weight);
     const int delta =
         128 - mapping::ProbabilityToLogOddsInteger(average_probability);
+    // alpha记录负数
     const uint8 alpha = delta > 0 ? 0 : -delta;
+    // value记录正数
     const uint8 value = delta > 0 ? delta : 0;
     cell_data.push_back(value);                         // value
     cell_data.push_back((value || alpha) ? alpha : 1);  // alpha
@@ -364,12 +379,15 @@ void Submap::InsertRangeData(const sensor::RangeData& range_data,
                              const RangeDataInserter& range_data_inserter,
                              const int high_resolution_max_range) {
   CHECK(!finished_);
+  // 这一块和2D不一样，在生成submap时，先将点云转换到第一帧的坐标系下，即local pose下
   const sensor::RangeData transformed_range_data = sensor::TransformRangeData(
       range_data, local_pose().inverse().cast<float>());
+  // 将submap坐标系下的点云进行距离滤波，插入高分辨率网格中
   range_data_inserter.Insert(
       FilterRangeDataByMaxRange(transformed_range_data,
                                 high_resolution_max_range),
       &high_resolution_hybrid_grid_);
+  // 不滤波，直接插入低分辨率的网格中
   range_data_inserter.Insert(transformed_range_data,
                              &low_resolution_hybrid_grid_);
   ++num_range_data_;
@@ -397,14 +415,17 @@ std::vector<std::shared_ptr<Submap>> ActiveSubmaps::submaps() const {
 
 int ActiveSubmaps::matching_index() const { return matching_submap_index_; }
 
+// 入口
 void ActiveSubmaps::InsertRangeData(
     const sensor::RangeData& range_data,
     const Eigen::Quaterniond& gravity_alignment) {
   for (auto& submap : submaps_) {
+    // submap插入点云
     submap->InsertRangeData(range_data, range_data_inserter_,
                             options_.high_resolution_max_range());
   }
   if (submaps_.back()->num_range_data() == options_.num_range_data()) {
+    // 生成submap，submap的local pose的平移是第一帧点云的origin，通过重力计算的旋转方向
     AddSubmap(transform::Rigid3d(range_data.origin.cast<double>(),
                                  gravity_alignment));
   }
