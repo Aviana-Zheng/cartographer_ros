@@ -32,6 +32,7 @@ CeresPose::CeresPose(
   // 调用release 会切断unique_ptr 和它原来管理的对象的联系。
   // release 返回的指针通常被用来初始化另一个智能指针或给另一个智能指针赋值。
   // 如果不用另一个智能指针来保存release返回的指针，程序就要负责资源的释放。
+  // 重构参数，优化时实际使用的是rotation_parametrization维度的等效旋转矢量
   problem->AddParameterBlock(translation_.data(), 3,
                              translation_parametrization.release());
   problem->AddParameterBlock(rotation_.data(), 4,

@@ -40,6 +40,7 @@ class OccupiedSpaceCostFunctor {
                            const HybridGrid& hybrid_grid)
       : scaling_factor_(scaling_factor),
         point_cloud_(point_cloud),
+        // 插值网格的构造
         interpolated_grid_(hybrid_grid) {}
 
   OccupiedSpaceCostFunctor(const OccupiedSpaceCostFunctor&) = delete;
@@ -62,10 +63,10 @@ class OccupiedSpaceCostFunctor {
   bool Evaluate(const transform::Rigid3<T>& transform,
                 T* const residual) const {
     for (size_t i = 0; i < point_cloud_.size(); ++i) {
-      // 将点云转换到global_map中
+      // 将点云转换到global_map中,  转到网格坐标系下
       const Eigen::Matrix<T, 3, 1> world =
           transform * point_cloud_[i].cast<T>();
-      // 计算对应的概率值
+      // 计算对应的概率值,插值得到概率
       const T probability =
           interpolated_grid_.GetProbability(world[0], world[1], world[2]);
       // 由于占用栅格中原本存储的就是栅格击中的概率，所以这里查询出来的概率就是(1−Msmooth(Tεhk))
@@ -77,6 +78,7 @@ class OccupiedSpaceCostFunctor {
  private:
   const double scaling_factor_;
   const sensor::PointCloud& point_cloud_;
+  // 用作插值的网格 和 2D有所不同
   const InterpolatedGrid interpolated_grid_;
 };
 

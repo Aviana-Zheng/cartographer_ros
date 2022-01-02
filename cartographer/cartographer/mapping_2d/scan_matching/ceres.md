@@ -1,7 +1,24 @@
+官方文档最好用
+
+http://ceres-solver.org/nnls_modeling.html#autodifflocalparameterization
+
+[Ceres Covariance Estimation](http://ceres-solver.org/nnls_covariance.html#_CPPv2N5ceres10Covariance7OptionsE)
+
+ [1] [ceres-solver](http://ceres-solver.org)
+ [2]《A Tutorial on Graph-Based [SLAM](https://so.csdn.net/so/search?q=SLAM)》
+ [3]《流形与几何初步》
+ [4]《Quater[nio](https://so.csdn.net/so/search?q=nio)n kinematics for the error-state Kalman filter》
+
+[1] [Sola, Joan. "Quaternion kinematics for the error-state Kalman filter." arXiv preprint arXiv:1711.02508 (2017).](https://arxiv.org/pdf/1711.02508.pdf)
+
+[2] [VINS-Mono:  A Robust and Versatile Monocular Visual-Inertial State Estimator, Tong  Qin, Peiliang Li, Zhenfei Yang, Shaojie Shen, IEEE Transactions on  Robotics.](https://arxiv.org/pdf/1708.03852.pdf)
+
 
 
 # 基于Ceres库的扫描匹配器
 http://gaoyichao.com/Xiaotu/?book=Cartographer%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB&title=%E5%9F%BA%E4%BA%8ECeres%E5%BA%93%E7%9A%84%E6%89%AB%E6%8F%8F%E5%8C%B9%E9%85%8D%E5%99%A8
+
+ 流型空间参考：[ceres教程（2）ceres::LocalParameterization](https://www.guyuehome.com/34727)
 
 通过分析[Local SLAM的业务主线](http://gaoyichao.com/Xiaotu/?book=Cartographer源码解读&title=Loca_SLAM的业务主线_AddRangeData)，我们发现Cartographer主要使用一种基于Ceres库的扫描匹配器，    完成激光扫描数据与地图之间的匹配工作，输出最可能的机器人位姿。    该扫描匹配器在[LocalTrajectoryBuilder2D](http://gaoyichao.com/Xiaotu/?book=Cartographer源码解读&title=Local_SLAM的核心_LocalTrajectoryBuilder2D)中以对象ceres_scan_matcher_的形式存在，    其数据类型为[CeresScanMatcher2D](https://github.com/googlecartographer/cartographer/blob/1.0.0/cartographer/mapping/internal/2d/scan_matching/ceres_scan_matcher_2d.h)。
 
@@ -103,6 +120,75 @@ ceres::LocalParameterization* local_param = new ceres::QuaternionParameterizatio
 problem.AddParameterBlock(quaternion, 4, local_param)//重构参数，优化时实际使用的是3维的等效旋转矢量
 ```
 
+
+
+原文：[LocalParameterization参数化](https://blog.csdn.net/hzwwpgmwy/article/details/86490556?spm=1001.2014.3001.5502)
+
+ [1] [ceres-solver](http://ceres-solver.org)
+ [2]《A Tutorial on Graph-Based [SLAM](https://so.csdn.net/so/search?q=SLAM)》
+ [3]《流形与几何初步》
+ [4]《Quater[nio](https://so.csdn.net/so/search?q=nio)n kinematics for the error-state Kalman filter》
+
+对于四元数或者旋转矩阵这种使用过参数化表示旋转的方式，它们是不支持广义的加法（因为使用普通的加法就会打破其 constraint，比如旋转矩阵加旋转矩阵得到的就不再是旋转矩阵），所以我们在使用ceres对其进行迭代更新的时候就需要自定义其更新方式了，具体的做法是实现一个参数本地化的子类，需要继承于LocalParameterization，LocalParameterization是纯虚类，所以我们继承的时候要把所有的纯虚函数都实现一遍才能使用该类生成对象.
+
+除了不支持广义加法要自定义参数本地化的子类外，如果你要对优化变量做一些限制也可以如法炮制，比如ceres中slam2d example中对角度范围进行了限制.
+
+
+
+ 流型空间原文：[ceres教程（2）ceres::LocalParameterization](https://www.guyuehome.com/34727)
+
+对应官网http://www.ceres-solver.org/nnls_modeling.html#localparameterization的介绍
+
+在许多优化问题中，尤其是传感器融合问题，必须对存在于称为流形的空间中的数量进行建模，例如由四元数表示的传感器的旋转/方向。其中流型中的加法用 $\boxplus$ 表示。以旋转矩阵更新为例：
+
+设旋转向量为 $ \phi = [p,q,r]$ ，其中 $\theta=\sqrt{p^{2}+q^{2}+r^{2}}$ ，是 $\phi$ 的模， $||a^{\wedge}|| = 1$，是 $\phi$ 的方向向量， 即 $\phi = \theta a^{\wedge}$。
+
+向量到旋转矩阵的指数映射为：
+$$
+\textcolor{#00ff00}{
+\operatorname{Exp}(\theta a^{\wedge}) = cos(\theta)\mathcal{I} + \Big(1-cos(\theta)\Big)\mathcal{a}\mathcal{a^T} + sin(\theta) \mathcal{a^{\wedge}}
+}
+$$
+即：
+$$
+\operatorname{Exp}([p, q, r])=\left[\begin{array}{ccc}
+\cos \theta+c p^{2} & -s r+c p q & s q+c p r \\
+s r+c p q & \cos \theta+c q^{2} & -s p+c q r \\
+-s q+c p r & s p+c q r & \cos \theta+c r^{2}
+\end{array}\right]
+$$
+where,
+$$
+\theta=\sqrt{p^{2}+q^{2}+r^{2}}, s=\frac{\sin \theta}{\theta}, c=\frac{1-\cos \theta}{\theta^{2}}
+$$
+then,
+$$
+\boxplus(x, \Delta)=x \operatorname{Exp}(\Delta)
+$$
+LocalParameterization 接口允许用户定义参数块并与它们所属的流形相关联。它通过定义  $Plus(\boxplus)$ 运算及其在 $\Delta = 0$ 处相对于 $\Delta$ 的导数来实现。
+
+```c++
+class LocalParameterization {
+ public:
+  virtual ~LocalParameterization() {}
+  // 流型空间中的加法
+  virtual bool Plus(const double* x,   
+                    const double* delta,
+                    double* x_plus_delta) const = 0;
+  // 计算雅克比矩阵
+  virtual bool ComputeJacobian(const double* x, double* jacobian) const = 0;
+  // local_matrix = global_matrix * jacobian
+  virtual bool MultiplyByJacobian(const double* x,
+                                  const int num_rows,
+                                  const double* global_matrix,
+                                  double* local_matrix) const;
+  virtual int GlobalSize() const = 0; // 参数块 x 所在的环境空间的维度。
+  virtual int LocalSize() const = 0; // Δ 所在的切线空间的维度
+};
+```
+
+
+
 #### 1.2.2 自定义LocalParameterization
 
 `LocalParaneterization`本身是一个虚基类，详细定义如下。用户可以自行定义自己需要使用的子类，或使用Ceres预先定义好的子类。
@@ -125,7 +211,24 @@ class LocalParameterization {
 };
 ```
 
-上述成员函数中，需要我们改写的主要为`GlobalSize()`、`ComputeJacobian()`、`GlobalSize()`和`LocalSize()`，这里我们以ceres预先定义好的`QuaternionParameterization`为例具体说明，类声明如下：
+上述成员函数中，需要我们改写的主要为`GlobalSize()`、`ComputeJacobian()`、`GlobalSize()`和`LocalSize()`，这里我们以ceres预先定义好的`QuaternionParameterization`为例具体说明，类声明如下。
+
+#### 1.2.3 `QuaternionParameterization`
+
+原文：[LocalParameterization参数化](https://blog.csdn.net/hzwwpgmwy/article/details/86490556?spm=1001.2014.3001.5502)
+
+ [1] [ceres-solver](http://ceres-solver.org)
+ [2]《A Tutorial on Graph-Based [SLAM](https://so.csdn.net/so/search?q=SLAM)》
+ [3]《流形与几何初步》
+ [4]《Quater[nio](https://so.csdn.net/so/search?q=nio)n kinematics for the error-state Kalman filter》
+
+`QuaternionParameterization`中表示四元数中四个量在内存中的存储顺序是<font color='#ff0000'>[w, x, y, z]</font>，而`Eigen`内部四元数在内存中的存储顺序是<font color='#ff0000'>[x, y, z, w]</font>，但是其构造顺序是<font color='#ff0000'>[w, x, y, z]</font>（不要被这个假象给迷惑），所以就要使用另一种参数本地化类，即`EigenQuaternionParameterization`，下面就以`QuaternionParameterization`为例子说明，如下：
+
+四元数的微分参考《ceres_scan_matcher.md》
+
+<font color = '#ff0000'>`QuaternionParameterization`四元数的流型:</font>
+
+$\textcolor{#00ff00}{\boxplus(x,\Delta) = \Big[cos(|\Delta|), \frac{sin(|\Delta|)}{|\Delta|}\Delta \Big] * x}$
 
 ```c++
 class CERES_EXPORT QuaternionParameterization : public LocalParameterization {
@@ -141,35 +244,143 @@ class CERES_EXPORT QuaternionParameterization : public LocalParameterization {
 };
 ```
 
-- 可以看到，GlobalSize()的返回值为4，即四元数本身的实际维数；由于在内部优化时，ceres采用的是旋转矢量，维数为3，因此LocalSize()的返回值为3。
-- 重载的Plus函数给出了四元数的更新方法，接受参数分别为优化前的四元数x，用旋转矢量表示的增量delta，以及更新后的四元数x_plus_delta。函数首先将增量由旋转矢量转换为四元数，随后采用标准四元数乘法对四元数进行更新。
+1. `GlobalSize()`
 
-```c++
-bool QuaternionParameterization::Plus(const double* x,
-                                      const double* delta,
-                                      double* x_plus_delta) const {
-  // 将旋转矢量转换为四元数形式
-  const double norm_delta =
-      sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]);
-  if (norm_delta > 0.0) {
-    const double sin_delta_by_delta = (sin(norm_delta) / norm_delta);
-    double q_delta[4];
-    q_delta[0] = cos(norm_delta);
-    q_delta[1] = sin_delta_by_delta * delta[0];
-    q_delta[2] = sin_delta_by_delta * delta[1];
-    q_delta[3] = sin_delta_by_delta * delta[2];
-    // 采用四元数乘法更新
-    QuaternionProduct(q_delta, x, x_plus_delta);
-  } else {
-    for (int i = 0; i < 4; ++i) {
-      x_plus_delta[i] = x[i];
-    }
-  }
-  return true;
-}
-```
+   表示参数 $x$ 的自由度（可能有冗余），比如四元数的自由度是4，旋转矩阵的自由度是9
 
-- ComputeJacobian函数给出了四元数相对于旋转矢量的雅克比矩阵计算方法，即 $\mathcal{J}_{4 \times 3}=d \mathcal{q} / d \mathcal{v} = d [q_w, q_x, q_y, q_z]^T /d [x,y,z] $，对应Jacobian维数为4行3列，存储方式为行主序。
+2. `LocalSize()`
+
+   表示 $\Delta x$ 所在的正切空间（tangent space）的自由度，那么这个自由度是多少呢？下面进行解释，
+   正切空间是流形（manifold）中概念，对流形感兴趣的可以参考[2]，参考论文[3]，我们可以这么理解manifold：
+
+    [2]《A Tutorial on Graph-Based [SLAM](https://so.csdn.net/so/search?q=SLAM)》
+    [3]《流形与几何初步》
+
+   > A manifold is a mathematical space that is not necessarily Euclidean on a global scale, but can be seen as Euclidean on a local scale
+
+   上面的意思是说，$\mathcal{SO3}$ 空间是属于非欧式空间的，但是没关系，我们只要保证旋转的局部是欧式空间，就可以使用流形进行优化了. 比如用四元数表示的3D旋转是属于非欧式空间的，那么我们取四元数的向量部分作为优化过程中的微小增量（因为是小量，所以不存在奇异性）. 为什么使用四元数的向量部分？这部分可以参考[4]或者之前写的关于四元数的博客. 这样一来，向量部分就位于欧式空间了，也就得到了正切空间自由度是3.
+
+    [4]《Quater[nio](https://so.csdn.net/so/search?q=nio)n kinematics for the error-state Kalman filter》
+
+3. `Plus()`
+
+   实现了优化变量的更新，即使用GN法得到的 $\Delta \tilde {\mathbf{x}}^{*}$ 更新原来优化变量 $ \breve {\mathbf {x } } $ ，使用的是 $\boxplus$ 广义加法运算符.
+
+   $\mathbf{x^{*}} = \breve{\mathbf{x}} \boxplus \mathbf{\Delta \tilde{x} ^{*}} $
+
+   $\boxplus$ 运算符，首先将四元数的向量部分（与旋转向量相差一个系数2）变成一个完整的四元数（纯虚四元数的指数），即得到过参数化的增量，然后将该增量应用到待估计变量上.
+
+   ```c++
+   bool QuaternionParameterization::Plus(const double* x,
+                                         const double* delta,
+                                         double* x_plus_delta) const {
+     // 将旋转矢量转换为四元数形式
+     const double norm_delta =
+         sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]);
+     if (norm_delta > 0.0) {
+       const double sin_delta_by_delta = (sin(norm_delta) / norm_delta);
+       double q_delta[4];
+       q_delta[0] = cos(norm_delta);
+       q_delta[1] = sin_delta_by_delta * delta[0];
+       q_delta[2] = sin_delta_by_delta * delta[1];
+       q_delta[3] = sin_delta_by_delta * delta[2];
+       // 采用四元数乘法更新
+       QuaternionProduct(q_delta, x, x_plus_delta);
+     } else {
+       for (int i = 0; i < 4; ++i) {
+         x_plus_delta[i] = x[i];
+       }
+     }
+     return true;
+   }
+   ```
+
+   
+
+4. `ComputeJacobian()`
+
+   参考[2]中的公式24，使用链式法则我们知道 $\tilde { \mathbf { J } } _ { i j } $ 由两部分构成，第一部分 $\frac { \partial \mathbf { e } _ { i j } ( \breve { \mathbf { x } } ) } { \partial \breve { \mathbf { x } } _ { i } } $ 是对原始过参数化的优化变量（比如，四元数）的导数，这个很容易求得，直接借助ceres的`AutoDiffCostFunction() `计算即可，或者自己计算雅可比矩阵，实现一个`costfunction`，关键是第二部分是如何求得的呢？
+   $$
+   \tilde{\mathbf{J}}_{i j} &= &\left.\frac{\partial \mathbf{e}_{i j}(\breve{\mathbf{x}} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{x}})}{\partial \Delta \tilde{\mathbf{x}}}\right|_{\Delta \tilde{\mathbf{x}}=0}
+   \\
+   &= &\left.\frac{\partial \mathbf{e}_{i j}(\breve{\mathbf{x}})}{\partial \breve{\mathbf{x}}_{i}} \cdot \frac{\breve{\mathbf{x}}_{i} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{x}}_{i}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{x}}_{i}}\right|_{\Delta \tilde{\mathbf{x}}=0}
+   $$
+   现在求解 $\left.\frac{\partial \check{\mathbf{x}}_{i} \boxplus \Delta \overline{\mathbf{x}}_{i}}{\partial \Delta \overline{\mathbf{x}}_{i}}\right|_{\Delta \overline{\mathbf{x}}=\mathbf{0}}$ , 以四元数为例:
+   $$
+   \frac{\partial \breve{\mathbf{q}}_{i} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}} &= &\frac{\partial \breve{\mathbf{q}}_{i} \otimes e^{\Delta \tilde{\mathbf{q}}_{i}}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}} 
+   \\
+   &\approx &\frac{\partial \breve{\mathbf{q}}_{i} \otimes
+   	\left[
+   		\begin{array}{c}
+   			1 \\
+   			\boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}
+   		\end{array}
+   	\right]}
+   	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
+   \\
+   &=  &\frac{\partial 
+   	\left[\breve{\mathbf{q}}_{i}\right]_{L}
+   	\left[
+   		\begin{array}{c}
+   			1 \\
+   			\boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}
+   		\end{array}
+   	\right]}
+   	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
+   $$
+   注意上面符号的变化，先从  $\boxplus$ 变成四元数乘法 $ \otimes $ ，最后变成普通的乘法，进一步得到，
+   $$
+   \left[
+   	\begin{array}{llll}
+   		q_{w} & -q_{x} & -q_{y} & -q_{z} \\
+   		q_{x} &  q_{w} & -q_{z} &  q_{y} \\
+   		q_{y} &  q_{z} &  q_{w} & -q_{x} \\
+   		q_{z} & -q_{y} &  q_{x} &  q_{w}
+   	\end{array}
+   \right] 
+   \frac{\partial
+   	\left[
+   		\begin{array}{c}
+   			1 \\
+   			\Delta \tilde{\mathbf{q}}_{i}
+   		\end{array}
+   	\right]}
+   	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
+   &= 		&\left[
+   			\begin{array}{llll}
+   				q_{w} & -q_{x} & -q_{y} & -q_{z} \\
+   				q_{x} &  q_{w} & -q_{z} &  q_{y} \\
+   				q_{y} &  q_{z} &  q_{w} & -q_{x} \\
+   				q_{z} & -q_{y} &  q_{x} &  q_{w}
+   			\end{array}
+   		\right]
+   		\left[
+   			\begin{array}{lll}
+   				0 & 0 & 0 \\
+   				1 & 0 & 0 \\
+   				0 & 1 & 0 \\
+   				0 & 0 & 1
+   			\end{array}
+   		\right]
+   \\
+   &=		&\left[
+   			\begin{array}{llll}
+   				-q_{x} & -q_{y} & -q_{z} \\
+   				 q_{w} & -q_{z} &  q_{y} \\
+   				 q_{z} &  q_{w} & -q_{x} \\
+   				-q_{y} &  q_{x} &  q_{w}
+   			\end{array}
+   		\right]
+   $$
+   最后得到雅可比矩阵是4*3维的，代码里使用一个size为12的数组存储.
+
+ComputeJacobian函数给出了四元数相对于旋转矢量的雅克比矩阵计算方法，即 $\mathcal{J}_{4 \times 3}=d \mathcal{q} / d \mathcal{v} = d [q_w, q_x, q_y, q_z]^T /d [x,y,z] $，对应Jacobian维数为4行3列，存储方式为行主序。
+
+上述证明是左乘，下面的代码是右乘，参考下面文献 [1] 的公式 (18)
+
+[1] [Sola, Joan. "Quaternion kinematics for the error-state Kalman filter." arXiv preprint arXiv:1711.02508 (2017).](https://arxiv.org/pdf/1711.02508.pdf)
+
+[2] [VINS-Mono:  A Robust and Versatile Monocular Visual-Inertial State Estimator, Tong  Qin, Peiliang Li, Zhenfei Yang, Shaojie Shen, IEEE Transactions on  Robotics.](https://arxiv.org/pdf/1708.03852.pdf)
 
 ```c++
 bool QuaternionParameterization::ComputeJacobian(const double* x,
@@ -182,17 +393,244 @@ bool QuaternionParameterization::ComputeJacobian(const double* x,
 }
 ```
 
-#### 1.2.3 ceres预定义LocalParameterization
+#### 1.2.4 ceres预定义LocalParameterization
+
+<font color = '#ff0000'>`QuaternionParameterization`四元数的流型</font>:
+
+$\textcolor{#00ff00}{\boxplus(x,\Delta) = \Big[cos(|\Delta|), \frac{sin(|\Delta|)}{|\Delta|}\Delta \Big] * x}$
 
 除了上面提到的`QuaternionParameterization`外，ceres还提供下述预定义`LocalParameterization`子类：
 
 - `EigenQuaternionParameterization`：除四元数排序采用Eigen的实部最后外，与`QuaternionParameterization`完全一致；
+
+  <font color = '#ff0000'>Eigen对四元数的元素采用了与通常使用的不同的内部内存布局。 具体来说，Eigen将元素以(x,y,z,w)的形式存储在内存中，即实部(w)作为最后一个元素存储。注意，在通过构造函数创建Eigen四元数时，元素是按w,x,y,z的顺序接受的。</font>
+
 - `IdentityParameterizationconst`：`LocalSize与GlobalSize`一致，相当于不传入`LocalParameterization`；
+
+  <font color = '#ff0000'>欧式空间中的流型：</font>
+
+  $\textcolor{#00ff00}{\boxplus(x, \Delta) = x + \Delta}$
+
 - `SubsetParameterization`：`GlobalSize`为2，`LocalSize`为1，用于第一维不需要优化的情况；
+
+  <font color = '#ff0000'>假设 $x$ 是一个二维向量，并且用户希望保持第一个坐标不变。$\Delta$ 是一个标量，那么 $\boxplus$ 定义为：</font>
+
+  $\textcolor{#00ff00}{\boxplus(x, \Delta) = x + \begin{bmatrix} 0 \\ 1 \end{bmatrix} \Delta}$
+
 - `HomogeneousVectorParameterization`：具有共面约束的空间点；
+
 - `ProductParameterization`：7维位姿变量一同优化，而前4维用四元数表示的情况（这里源文档只举了一个例子，具体用法有待深化）；
 
-### 1.3 其他成员函数
+#### 1.2.5 `AutoDiffLocalParameterization`
+
+[`AutoDiffLocalParameterization`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres29AutoDiffLocalParameterizationE) does for [`LocalParameterization`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres21LocalParameterizationE) what [`AutoDiffCostFunction`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres20AutoDiffCostFunctionE) does for [`CostFunction`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres12CostFunctionE). It allows the user to define a templated functor that implements the [`LocalParameterization::Plus()`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4NK5ceres21LocalParameterization4PlusEPKdPKdPd) operation and it uses automatic differentiation to implement the computation of the Jacobian.
+
+To get an auto differentiated local parameterization, you must define a class with a templated operator() (a functor) that computes
+
+$\textcolor{#00ff00}{x' = \boxplus(x, \Delta x)}$
+
+For example, Quaternions have a three dimensional local parameterization. Its plus operation can be implemented as (taken from [internal/ceres/autodiff_local_parameterization_test.cc](https://ceres-solver.googlesource.com/ceres-solver/+/master/internal/ceres/autodiff_local_parameterization_test.cc) )
+
+```c++
+LocalParameterization* local_parameterization =
+    new AutoDiffLocalParameterization<QuaternionPlus, 4, 3>;
+                                                      |  |
+                           Global Size ---------------+  |
+                           Local Size -------------------+
+```
+
+eg:
+
+```c++
+struct QuaternionPlus {
+  template<typename T>
+  bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
+    const T squared_norm_delta =
+        delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];
+
+    T q_delta[4];
+    if (squared_norm_delta > 0.0) {
+      T norm_delta = sqrt(squared_norm_delta);
+      const T sin_delta_by_delta = sin(norm_delta) / norm_delta;
+      q_delta[0] = cos(norm_delta);
+      q_delta[1] = sin_delta_by_delta * delta[0];
+      q_delta[2] = sin_delta_by_delta * delta[1];
+      q_delta[3] = sin_delta_by_delta * delta[2];
+    } else {
+      // We do not just use q_delta = [1,0,0,0] here because that is a
+      // constant and when used for automatic differentiation will
+      // lead to a zero derivative. Instead we take a first order
+      // approximation and evaluate it at zero.
+      q_delta[0] = T(1.0);
+      q_delta[1] = delta[0];
+      q_delta[2] = delta[1];
+      q_delta[3] = delta[2];
+    }
+
+    Quaternionproduct(q_delta, x, x_plus_delta);
+    return true;
+  }
+};
+```
+
+
+
+### 1.3 AutomaticDiff
+
+原文：[Ceres】（一）自动求导（AutomaticDiff）](https://blog.csdn.net/hzwwpgmwy/article/details/80968653?spm=1001.2014.3001.5502)
+
+g2o中如果没有定义这个边的`linearizeOplus()`，就会调用数值求导。但是g2o的数值求导比较慢，效果较差。所以下面探讨在g2o中嵌入ceres的自动求导，避免复杂的[雅可比矩阵](https://so.csdn.net/so/search?q=雅可比矩阵)的推导。
+
+数值求导与自动求导的区别：
+We will now consider automatic differentiation. It is a technique that can compute exact derivatives, fast, while requiring about the same effort from the user as is needed to use numerical differentiation.
+
+
+
+#### 1.3.1 二元数
+
+二元数（Dual number）是实数的推广，二元数引入了一个无穷小的二元数单位： $\epsilon$ ，它的平方 $\epsilon ^2 = 0$  (亦即 $\epsilon$ 是幂零元），每一个二元数 $z$ 都有 $z = a + b\epsilon$ 的特性，其中 $a$ 和 $b$ 是实数， $a$ 是实部， $b$  是无穷小部。
+
+#### 1.3.2 **求雅可比**
+
+$\mathcal{Jet}$ 是指可微函数 $f$ 的泰勒展开式中前 $k$ 项。
+假设存在一个 $\mathcal{Jet}$ ，它是一个 $n$ 维的二元数，由一个实部 $a$ 和 $n$ 个无穷小的二元数单位（ $\epsilon_i， i=1,\cdots, n, \enspace \forall i,j: \epsilon_i\epsilon_j=0$ ）构成
+$$
+x = a + \sum_{j}v_j\epsilon_j
+$$
+为避免符号冗杂，简化为
+$$
+x = a + \pmb{\mathbf{v}}
+$$
+使用泰勒展开，得到：
+$$
+f(a + \mathbf{v}) = f(a) + Df(a)\mathbf{v}
+$$
+对多维函数， $f:\mathbb{R^n} \longrightarrow \mathbb{R^m}$ ，其中， $x_i = a_i + \mathbf{v_i}，\forall i = 1， \cdots ，n$ :
+$$
+f(x_1, \cdots, x_n) = f(a_1, \cdots, a_n) + \sum_i \mathbf{D_i}f(a_1,\cdots,a_n) \mathbf{v_i}
+$$
+令 $\mathbf{v_i} = \mathbf{\epsilon_i}$ 作为 $i^{th}$ 个标准误差向量，上面的表达式简化为：
+$$
+f(x_1, \cdots, x_n) = f(a_1, \cdots, a_n) + \sum_i \mathbf{D_i}f(a_1,\cdots,a_n) \mathbf{\epsilon_i}
+$$
+通过提取 $\mathbf{\epsilon_i}$ 的系数，我们能得到Jacobian矩阵
+
+eg:
+
+使用[Rat43](https://www.itl.nist.gov/div898/strd/nls/data/ratkowsky3.shtml)的例子说明，代价函数的计算模型如下：
+
+```c++
+struct Rat43CostFunctor {
+  Rat43CostFunctor(const double x, const double y) : x_(x), y_(y) {}
+
+  template <typename T>
+  bool operator()(const T* parameters, T* residuals) const {
+    const T b1 = parameters[0];
+    const T b2 = parameters[1];
+    const T b3 = parameters[2];
+    const T b4 = parameters[3];
+    residuals[0] = b1 * pow(1.0 + exp(b2 -  b3 * x_), -1.0 / b4) - y_;
+    return true;
+  }
+
+  private:
+    const double x_;
+    const double y_;
+};
+
+
+CostFunction* cost_function =
+      new AutoDiffCostFunction<Rat43CostFunctor, 1, 4>(
+        new Rat43CostFunctor(x, y));
+
+```
+
+其中，这里模板参数T通常为double，在需要求residual的雅克比时，T=Jet
+
+ $n$ 维的二元数Jet满足下面的运算法则：
+
+```c++
+template<int N> struct Jet {
+  double a;
+  Eigen::Matrix<double, 1, N> v;
+};
+
+template<int N> Jet<N> operator+(const Jet<N>& f, const Jet<N>& g) {
+  return Jet<N>(f.a + g.a, f.v + g.v);
+}
+
+template<int N> Jet<N> operator-(const Jet<N>& f, const Jet<N>& g) {
+  return Jet<N>(f.a - g.a, f.v - g.v);
+}
+
+template<int N> Jet<N> operator*(const Jet<N>& f, const Jet<N>& g) {
+  return Jet<N>(f.a * g.a, f.a * g.v + f.v * g.a);
+}
+
+template<int N> Jet<N> operator/(const Jet<N>& f, const Jet<N>& g) {
+  return Jet<N>(f.a / g.a, f.v / g.a - f.a * g.v / (g.a * g.a));
+}
+
+template <int N> Jet<N> exp(const Jet<N>& f) {
+  return Jet<T, N>(exp(f.a), exp(f.a) * f.v);
+}
+
+// This is a simple implementation for illustration purposes, the
+// actual implementation of pow requires careful handling of a number
+// of corner cases.
+template <int N>  Jet<N> pow(const Jet<N>& f, const Jet<N>& g) {
+  return Jet<N>(pow(f.a, g.a),
+                g.a * pow(f.a, g.a - 1.0) * f.v +
+                pow(f.a, g.a) * log(f.a); * g.v);
+}
+
+```
+
+使用上面的重载函数，使用`Jets`矩阵调用`Rat43CostFunctor`，而不是原来`doubles`(`parameters`的类型时`double`)，这样就可以计算得到雅可比矩阵了。
+
+```c++
+class Rat43Automatic : public ceres::SizedCostFunction<1,4> {
+ public:
+  Rat43Automatic(const Rat43CostFunctor* functor) : functor_(functor) {}
+  virtual ~Rat43Automatic() {}
+  virtual bool Evaluate(double const* const* parameters,
+                        double* residuals,
+                        double** jacobians) const {
+    // Just evaluate the residuals if Jacobians are not required.
+    //【1】如果不需要雅可比，直接使用double类型的parameters调用Rat43CostFunctor即可
+    if (!jacobians) return (*functor_)(parameters[0], residuals);
+
+    // Initialize the Jets
+    //【2】初始化Jets
+    ceres::Jet<4> jets[4];
+    for (int i = 0; i < 4; ++i) {
+      jets[i].a = parameters[0][i];
+      jets[i].v.setZero();
+      jets[i].v[i] = 1.0;
+    }
+
+    ceres::Jet<4> result;
+    (*functor_)(jets, &result);
+
+    // Copy the values out of the Jet.
+    //【3】提取残差
+    residuals[0] = result.a;      
+    //【4】提取雅可比矩阵  
+    for (int i = 0; i < 4; ++i) {
+      jacobians[0][i] = result.v[i]; 
+    }
+    return true;
+  }
+
+ private:
+  std::unique_ptr<const Rat43CostFunctor> functor_;
+};
+
+```
+
+
+
+### 1.4 其他成员函数
 
 `Probelm`还提供了其他关于`ResidualBlock`和`ParameterBlock`的函数，例如获取模块维数、判断是否存在模块、存在的模块数目等，这里只列出几个比较重要的函数，完整的列表参见[ceres API](http://www.ceres-solver.org/nnls_modeling.html#problem)：
 
@@ -218,6 +656,199 @@ bool Problem::Evaluate(const Problem::EvaluateOptions &options,
 ```c++
 ceres::Solve(&options, &problem, &summary);
 ```
+
+### 1.5 Ceres Covariance Estimation
+
+参考：Ceres Covariance Estimation
+One way to assess the quality of the solution returned by a non-linear least squares solver is to analyze the covariance of the solution.
+
+求解非线性问题
+
+$y = f(x) + \mathcal{N}(0,I)$
+
+观测 $y$ 是一个独立于 $x$ 的随机非线性函数，其均值是 $f(x)$ ，协防差是单位矩阵，为了求解 $x$ 最大似然估计值，转换成如下最小二乘问题：
+
+$x^{*}=\arg \underset{x}{\min} \|f(x)\|^{2}$
+
+$x^{*}$ 的协方差如下：
+
+$\mathcal{C}(x^{*}) = \Big(\mathcal{J}^{'}(x^{*})  \mathcal{J}(x^{*}) \Big)^{-1}$
+
+$\mathcal{J}(x^{*})$  是 $f$ 关于 $x$ 的雅可比矩阵，上述式子是在假定 $\mathcal{J}(x^{*})$ 是**列满秩**时成立的，如果 $\mathcal{J}(x^{*})$ 不是列满秩的，需要求伪逆
+
+$\mathcal{C}(x^{*}) = \Big(\mathcal{J}^{'}(x^{*})  \mathcal{J}(x^{*}) \Big)^{\dagger}$
+
+如果协方差不是单位矩阵，上述求解过程变成：
+$$
+\begin{aligned}
+y &= &f(x) + \mathcal{N}(0, S) \\
+x^{*} &= &\arg \underset{x}{\min} f^{\prime}(x) \mathcal{S}^{-1} f(x) \\
+C\left(x^{*}\right) &= &\Big(\mathcal{J}^{'}(x^{*}) \mathcal{S}^{-1} \mathcal{J}(x^{*}) \Big)^{-1} 
+\end{aligned}
+$$
+其中  $\mathcal{S}$  是positive semi-definite矩阵, 在ceres中, 用户需要使用  $\mathcal{S}^{-1 / 2} f(x)$  替换 $f(x)$
+
+#### 1.5.1 Rank of the Jacobian
+
+当雅可比是rank deficient类型的时候，$\mathcal{J'} \mathcal{J}$ 的逆不存在，下面介绍导致此种问题的原因
+
+##### 1.5.1.1 Structural rank deficiency
+
+导致雅可比欠定的可能原因是一些structural-columns，这些列是0或者是常数，这种Structural rank deficiency问题经常出现在：
+
+当该problem包含常数参数块时，比如，
+
+1) 使用SetParameterBlockConstant()，
+2)  手动将不优化的变量对应的那一列雅可比置零，
+3)  手动使用常数代替某个不优化变量，达到不优化该变量（见旷世标定工具箱）
+   
+
+##### 1.5.1.2 Numerical rank deficiency
+
+> Numerical rank deficiency, where the rank of the matrix cannot be predicted by its sparsity structure and requires looking at its numerical values is more complicated.
+
+存在两种情况：
+
+1）过参数化导致的欠定
+比如SO(3)，这种问题需要用户自己实现LocalParameterization来解决
+2）More general numerical rank deficiency in the Jacobian requires the computation of the so called Singular Value Decomposition (SVD) of $\mathcal{J'} \mathcal{J}$ .
+
+- We do not know how to do this for large sparse matrices efficiently.
+- For small and moderate sized problems this is done using dense linear algebra.
+
+
+
+#### 1.5.2 Covariance::Options::algorithm_type
+
+> Default: SPARSE_QR
+
+##### 1.5.2.1 SPARSE_QR
+
+只能用于当Jacobian正定时，速度较SVD快，   
+$$
+\mathcal{Q} \mathcal{R} &= &\mathcal{J} \\
+(\mathcal{J}^T \mathcal{J})^{-1} &= &(\mathcal{R}^T \mathcal{R})^{-1}
+$$
+
+
+> 对 $\mathcal{R}^T \mathcal{R}$ 的求逆采用回代的方式以降低运算量，参考：《numerical mathematics》
+
+
+
+ceres中的QR分解有两种实现方式：
+1）Eigen’s sparse QR factorization is a moderately fast algorithm suitable for small to medium sized matrices.
+2）For best performance we recommend using SuiteSparseQR which is enabled by setting Covaraince::Options::sparse_linear_algebra_library_type to SUITE_SPARSE
+
+
+
+##### 1.5.2.2 DENSE_SVD
+
+DENSE_SVD uses Eigen’s JacobiSVD to perform the computations
+
+
+$$
+\mathcal{U} \mathcal{S} \mathcal{V}^T &= &\mathcal{J} \\
+(\mathcal{J}^{'} \mathcal{J})^{\dagger} &= &\mathcal{V} \mathcal{S}^{\dagger} \mathcal{V}^T
+$$
+It is an accurate but slow method and should only be used for small to moderate sized problems.
+It can handle full-rank as well as rank deficient Jacobians.
+
+
+
+#### 1.5.3 Covariance::Options::min_reciprocal_condition_number
+
+如果Jacobian是接近奇异的，$\mathcal{J}^{'} \mathcal{J}$ 的逆将很不稳定，比如：
+$$
+\mathcal{J} = \begin{bmatrix}
+1.0 & 1.0 \\
+1.0 & 1.0000001
+\end{bmatrix}
+$$
+这个矩阵几乎是欠定的，我们将得到这样的结果，
+$$
+(\mathcal{J}^{'} \mathcal{J})^{-1} = \begin{bmatrix}
+2.0471e + 14 & -2.0471e + 14  \\
+-2.0471e + 14  & 2.0471e + 14 
+\end{bmatrix}
+$$
+因此需要根据结果来判断求解是否成功，也即，$\mathcal{J}^{'} \mathcal{J}$  是否是正定的，下面针对上面说到的两种算法类型采用不同策略进行判别：
+1）SPARSE_QR
+$$
+rank(\mathcal{J}) < num\_ col(\mathcal{J})
+$$
+
+
+$ \operatorname{rank}(\mathcal{J})$ 能直接从sparse QR factorization中获取到
+
+2）DENSE_SVD
+min_reciprocal_condition_number的默认值是：$10^{-14} $
+$$
+\frac{\sigma _{min}}{\sigma_{max}} < \sqrt{min \enspace reciprocal \enspace condition \enspace number}
+$$
+
+
+
+
+where $\sigma_{min}$ and $\sigma_{max}$ are the minimum and maxiumum singular values of $\mathcal{J}$ respectively.
+
+
+#### 1.5.4 Covariance::Options::null_space_rank
+
+该选项仅用于当使用`DENSE_SVD`来求解逆时来使用，$\mathcal{J}^{'} \mathcal{J}$  的特征分解是 $(\lambda_i,e_i)$ , $\lambda_i$ is the $i^{th}$ eigenvalue and  $e_i$ is the corresponding eigenvector, then the inverse of $\mathcal{J}^{'} \mathcal{J}$   is:
+$$
+(\mathcal{J}^{'} \mathcal{J})^{-1} = \sum_i \frac{1}{\lambda_i}e_ie_i^{'}
+$$
+min_reciprocal_condition_number 和 null_space_rank控制着要丢掉上式中哪些小特征项
+
+1. If null_space_rank is non-negative,
+   最小的null_space_rank 个 eigenvalue/eigenvectors将要被dorpped掉，
+   If the ratio of the smallest non-zero eigenvalue to the largest eigenvalue in the truncated matrix is still below min_reciprocal_condition_number, then the Covariance::Compute() will fail and return false.
+2. 当 null_space_rank = -1时，dorpped规则是这样的
+
+$$
+\frac{\lambda_i}{\lambda_{max}} < min \enspace reciprocal \enspace condition \enspace number
+$$
+
+
+
+
+
+#### 1.5.5 Covariance::Options::apply_loss_function
+
+> Default: true
+
+用于控制核函数对协方差的影响
+
+Even though the residual blocks in the problem may contain loss functions, setting apply_loss_function to false will turn off the application of the loss function to the output of the cost function and in turn its effect on the covariance.
+
+
+
+#### 1.5.6 在ceres中计算参数块对应的协方差
+
+原文：
+
+[【Ceres】（三）Covariance Estimation](https://blog.csdn.net/hzwwpgmwy/article/details/109557534)
+
+##### 1.5.6.1 bool Covariance::Compute(const vector<pair<const double *,  const double *>> &covariance_blocks, Problem *problem)
+
+其中`covariance_blocks`表示要计算哪些参数块的协方差，
+
+由于协方差是对称性的，所以用户往`covariance_blocks`中传进去一个`<block1, block2>`, 那么用户可以通过`GetCovarianceBlock`得到`(block1, block2)`和`(block2, block1)`的协方差
+
+`covariance_blocks`不能包含重复的参数块，否则将发生`bad thing`
+
+在计算协方差的，ceres会使用所有的Jacobian来计算一个大`H`，然后根据`covariance_blocks`的设置选择计算哪些部分的协方差，即`covariance_blocks`不会影响要使用哪些`Jacobian`来参与计算
+
+
+##### 1.5.6.2 bool GetCovarianceBlock(const double *parameter_block1, const double *parameter_block2, double *covariance_block) const
+
+在调用该函数之前，需要先调用上面的`compute`来添加参数块，然后再获取`<parameter_block2, parameter_block1>`对应的协防差
+`covariance_block `必须指向一个`parameter_block1_size x parameter_block2_size`大小的内存块
+
+##### 1.5.6.3  bool GetCovarianceBlockInTangentSpace(const double  *parameter_block1, const double *parameter_block2, double  *covariance_block) const
+
+Returns cross-covariance in the tangent space if a local parameterization is associated with either parameter block; else returns cross-covariance in the ambient space.
+
 
 ## 2. 类CeresScanMatcher2D
 

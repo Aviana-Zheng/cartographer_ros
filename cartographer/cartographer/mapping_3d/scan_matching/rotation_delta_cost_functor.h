@@ -37,7 +37,7 @@ class RotationDeltaCostFunctor {
   explicit RotationDeltaCostFunctor(const double scaling_factor,
                                     const Eigen::Quaterniond& initial_rotation)
       : scaling_factor_(scaling_factor) {
-    // 四元数的逆即为四元数的共轭
+    // 四元数共轭即为逆（四元数模长为1）
     initial_rotation_inverse_[0] = initial_rotation.w();
     initial_rotation_inverse_[1] = -initial_rotation.x();
     initial_rotation_inverse_[2] = -initial_rotation.y();
@@ -47,6 +47,7 @@ class RotationDeltaCostFunctor {
   RotationDeltaCostFunctor(const RotationDeltaCostFunctor&) = delete;
   RotationDeltaCostFunctor& operator=(const RotationDeltaCostFunctor&) = delete;
 
+  // 旋转得到三个角，并作差
   template <typename T>
   bool operator()(const T* const rotation_quaternion, T* residual) const {
     T delta[4];

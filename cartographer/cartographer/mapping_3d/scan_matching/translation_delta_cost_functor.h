@@ -44,6 +44,7 @@ class TranslationDeltaCostFunctor {
 
   template <typename T>
   bool operator()(const T* const translation, T* residual) const {
+    // 平移直接作差
     // 权重乘以优化后的位移插值
     residual[0] = scaling_factor_ * (translation[0] - x_);
     residual[1] = scaling_factor_ * (translation[1] - y_);

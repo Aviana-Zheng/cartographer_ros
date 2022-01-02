@@ -31,6 +31,8 @@ namespace cartographer {
 namespace mapping_3d {
 namespace scan_matching {
 
+// 和2D基本一致，但是多了2个分辨率的地图。
+
 proto::CeresScanMatcherOptions CreateCeresScanMatcherOptions(
     common::LuaParameterDictionary* parameter_dictionary);
 

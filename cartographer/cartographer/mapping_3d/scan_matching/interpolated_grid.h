@@ -34,6 +34,7 @@ namespace scan_matching {
 // continuously(持续) differentiable(可微的).
 class InterpolatedGrid {
  public:
+  // 构造函数中将网格数据传进来
   explicit InterpolatedGrid(const HybridGrid& hybrid_grid)
       : hybrid_grid_(hybrid_grid) {}
 
@@ -55,9 +56,12 @@ class InterpolatedGrid {
     ComputeInterpolationDataPoints(x, y, z, &x1, &y1, &z1, &x2, &y2, &z2);
 
     // 计算(x1, y1, z1),( x2, y2, z2)相邻的共8个栅格的概率值
+    // 获取低的voxel的index
     const Eigen::Array3i index1 =
         hybrid_grid_.GetCellIndex(Eigen::Vector3f(x1, y1, z1));
+    // 获取低的voxel的概率
     const double q111 = hybrid_grid_.GetProbability(index1);
+    // 获取其附近8个voxel的概率，该8个voxel肯定包含坐标点xyz
     const double q112 =
         hybrid_grid_.GetProbability(index1 + Eigen::Array3i(0, 0, 1));
     const double q121 =
@@ -86,6 +90,7 @@ class InterpolatedGrid {
     const T normalized_zz = normalized_z * normalized_z;
     const T normalized_zzz = normalized_z * normalized_zz;
 
+    // 双三次插值，该公式如下
     // We first interpolate in z, then y, then x. All 7 times this uses the same
     // scheme: A * (2t^3 - 3t^2 + 1) + B * (-2t^3 + 3t^2).
     // The first polynomial is 1 at t=0, 0 at t=1, the second polynomial is 0
@@ -109,6 +114,7 @@ class InterpolatedGrid {
   }
 
  private:
+  // 计算相邻的两个voxel的中心点
   template <typename T>
   void ComputeInterpolationDataPoints(const T& x, const T& y, const T& z,
                                       double* x1, double* y1, double* z1,
@@ -128,6 +134,7 @@ class InterpolatedGrid {
   // Center of the next lower voxel, i.e., not necessarily the voxel containing
   // (x, y, z). For each dimension, the largest voxel index so that the
   // corresponding center is at most the given coordinate.
+  // 计算下一个的voxel的中心点，必须保证center的xyz是小于xyz的
   Eigen::Vector3f CenterOfLowerVoxel(const double x, const double y,
                                      const double z) const {
     // Center of the cell containing (x, y, z).
