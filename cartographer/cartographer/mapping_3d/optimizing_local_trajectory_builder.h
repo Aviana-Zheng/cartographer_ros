@@ -59,11 +59,12 @@ class OptimizingLocalTrajectoryBuilder
   const PoseEstimate& pose_estimate() const override;
 
  private:
-  struct State {
+  struct State { // 以第一帧点云所在位置为全局坐标系，cc文件line174
     std::array<double, 3> translation;
     std::array<double, 4> rotation;  // Rotation quaternion as (w, x, y, z).
     std::array<double, 3> velocity;
 
+    // 构造函数隐式转换
     State(const Eigen::Vector3d& translation,
           const Eigen::Quaterniond& rotation, const Eigen::Vector3d& velocity)
         : translation{{translation.x(), translation.y(), translation.z()}},
@@ -84,10 +85,12 @@ class OptimizingLocalTrajectoryBuilder
 
   struct Batch {
     common::Time time;
-    sensor::PointCloud points;
+    sensor::PointCloud points; // 当前雷达位置采集的点云(距离在min和max之间的点云)
     sensor::PointCloud high_resolution_filtered_points;
     sensor::PointCloud low_resolution_filtered_points;
-    State state;
+    State state;   // global坐标系下的state
+    // PredictState(last_batch.state, last_batch.time, time)  预测的state
+    // 后续优化MaybeOptimize
   };
 
   struct OdometerData {
@@ -97,6 +100,7 @@ class OptimizingLocalTrajectoryBuilder
     transform::Rigid3d pose;
   };
 
+  // 根据IMU信息预测state
   State PredictState(const State& start_state, const common::Time start_time,
                      const common::Time end_time);
 
@@ -109,7 +113,8 @@ class OptimizingLocalTrajectoryBuilder
   std::unique_ptr<InsertionResult> InsertIntoSubmap(
       const common::Time time, const sensor::RangeData& range_data_in_tracking,
       const transform::Rigid3d& pose_observation);
-
+  
+  // batches中状态变换
   void TransformStates(const transform::Rigid3d& transform);
   std::unique_ptr<InsertionResult> MaybeOptimize(common::Time time);
 

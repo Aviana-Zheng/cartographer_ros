@@ -51,6 +51,7 @@ class RotationCostFunction {
 
  private:
   const double scaling_factor_;
+  // IMU旋转过的角度delta
   const Eigen::Quaterniond delta_rotation_imu_frame_;
 };
 

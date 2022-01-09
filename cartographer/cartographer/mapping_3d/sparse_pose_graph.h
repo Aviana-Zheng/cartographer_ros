@@ -97,15 +97,25 @@ class SparsePoseGraph : public mapping::SparsePoseGraph {
   // The current state of the submap in the background threads. When this
   // transitions to kFinished, all scans are tried to match against this submap.
   // Likewise, all new scans are matched against submaps which are finished.
+  // 子图的状态主要是给后台的线程提供的
+  /* 
+   * 一开始子图的状态都是kActive的，当它切换到kFinished的状态下后就会与所有的节点
+   * 进行一次扫描匹配操作。此外新增的节点也会与所有kFinished状态的子图进行扫描匹配。 
+   * 这一操作我们可以理解为是进行闭环检测，通过遍历与所有的kFinished状态的子图，或者节点，
+   * 应当可以找到发生闭环的地点并建立一个约束来描述
+   */
   enum class SubmapState { kActive, kFinished, kTrimmed };
   struct SubmapData {
+    // 记录了具体的子图对象
     std::shared_ptr<const Submap> submap;
 
     // IDs of the scans that were inserted into this map together with
     // constraints for them. They are not to be matched again when this submap
     // becomes 'finished'.
+    // 记录了所有直接插入submap的节点
     std::set<mapping::NodeId> node_ids;
 
+    // 记录了子图的状态
     SubmapState state = SubmapState::kActive;
   };
 
@@ -156,34 +166,44 @@ class SparsePoseGraph : public mapping::SparsePoseGraph {
   mapping::SparsePoseGraph::SubmapData GetSubmapDataUnderLock(
       const mapping::SubmapId& submap_id) REQUIRES(mutex_);
 
+  // 位姿图的各种配置
   const mapping::proto::SparsePoseGraphOptions options_;
+  // 用于多线程运行时保护重要数据资源的互斥量
   common::Mutex mutex_;
 
   // If it exists, further scans must be added to this queue, and will be
-  // considered later.
+  // considered later.  智能指针形式的工作队列，用于记录将要完成的任务
   std::unique_ptr<std::deque<std::function<void()>>> scan_queue_
       GUARDED_BY(mutex_);
 
-  // How our various trajectories are related.
+  // How our various trajectories are related.描述不同轨迹之间的连接状态
   mapping::TrajectoryConnectivity trajectory_connectivity_ GUARDED_BY(mutex_);
 
   // We globally localize a fraction of the scans from each trajectory.
+  // 以trajectory_id为索引的字典，用于对各个轨迹上的部分节点进行全局定位的采样器
   std::unordered_map<int, std::unique_ptr<common::FixedRatioSampler>>
       global_localization_samplers_ GUARDED_BY(mutex_);
 
   // Number of scans added since last loop closure.
+  // 一个计数器，记录了自从上次闭环检测之后新增的节点数量，用以判断是否开始后端优化
   int num_scans_since_last_loop_closure_ GUARDED_BY(mutex_) = 0;
 
   // Whether the optimization has to be run before more data is added.
+  // 标识当前是否正在进行闭环检测。
   bool run_loop_closure_ GUARDED_BY(mutex_) = false;
 
   // Current optimization problem.
+  // 描述当前优化问题的对象，应该是PoseGraph2D的核心。
   sparse_pose_graph::OptimizationProblem optimization_problem_;
+  // 约束构造器，用于异步的计算约束。
   sparse_pose_graph::ConstraintBuilder constraint_builder_ GUARDED_BY(mutex_);
+  // 记录了位姿图中的所有约束。
   std::vector<Constraint> constraints_ GUARDED_BY(mutex_);
 
   // Submaps get assigned an ID and state as soon as they are seen, even
   // before they take part in the background computations.
+  // 该容器记录了所有的子图数据及其内部节点，其中NestedVectorsById是对std::map的一个封装，
+  // SubmapData除了描述了子图的数据之外还记录了所有内部的节点。
   mapping::NestedVectorsById<SubmapData, mapping::SubmapId> submap_data_
       GUARDED_BY(mutex_);
 
@@ -192,9 +212,10 @@ class SparsePoseGraph : public mapping::SparsePoseGraph {
   // Trajectory ID to connected component ID.
   std::map<int, size_t> reverse_connected_components_;
 
-  // Data that are currently being shown.
+  // Data that are currently being shown.记录轨迹节点的容器
   mapping::NestedVectorsById<mapping::TrajectoryNode, mapping::NodeId>
       trajectory_nodes_ GUARDED_BY(mutex_);
+  // 添加的节点数量，一个节点一次闭环检测
   int num_trajectory_nodes_ GUARDED_BY(mutex_) = 0;
 
   // Current submap transforms used for displaying data.

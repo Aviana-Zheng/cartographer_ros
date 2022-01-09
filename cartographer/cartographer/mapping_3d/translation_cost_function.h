@@ -34,6 +34,7 @@ class TranslationCostFunction {
   TranslationCostFunction(const TranslationCostFunction&) = delete;
   TranslationCostFunction& operator=(const TranslationCostFunction&) = delete;
 
+  // 匀加速运动， 理论上的位移 = 速度乘以时间
   template <typename T>
   bool operator()(const T* const start_translation,
                   const T* const end_translation, const T* const velocity,

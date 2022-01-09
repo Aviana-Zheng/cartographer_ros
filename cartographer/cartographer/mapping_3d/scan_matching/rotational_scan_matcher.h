@@ -44,6 +44,7 @@ class RotationalScanMatcher {
  private:
   float MatchHistogram(const Eigen::VectorXf& scan_histogram) const;
 
+  // 直方图
   Eigen::VectorXf histogram_;
 };
 

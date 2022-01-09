@@ -36,6 +36,16 @@ namespace cartographer {
 namespace mapping_3d {
 namespace scan_matching {
 
+/*
+    这个方法在3D匹配中主要使用在回环检测中，使用的同样是分枝定界的方法寻找最优值。
+
+    在计算过程中，作者首先使用IMU确定了重力方向，将两个匹配的3D scan 的概率网格的Z轴和重力方向对齐，
+    这样匹配过程中就可以仅仅考虑偏航（yaw）方向的搜索窗口尺度问题；
+    然后作者在Z轴方向上做了切片处理，沿Z轴垂直的xoy*面做切片，然后统计每个切片内的点的分布情况，
+    最后将所有切片内点的分布情况映射成一个直方图，最终的scan匹配度通过两个直方图的余弦距离衡量，
+    下面稍微详细的分析一下，其中的关键是如何统计切片内的点的分布情况，以及如何映射成一个直方图，
+    它需要确保两个相似的场景映射成的直方图类似，而扫描两个相似场景的位姿（位移+旋转）却不一定相似。
+ */
 proto::FastCorrelativeScanMatcherOptions
 CreateFastCorrelativeScanMatcherOptions(
     common::LuaParameterDictionary* parameter_dictionary);
@@ -49,6 +59,7 @@ struct DiscreteScan {
 };
 
 struct Candidate {
+  // scan_index表示角度切片的角度值 offset 是位移值
   Candidate(const int scan_index, const Eigen::Array3i& offset)
       : scan_index(scan_index), offset(offset) {}
 

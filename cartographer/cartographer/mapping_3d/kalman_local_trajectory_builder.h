@@ -35,7 +35,7 @@ namespace cartographer {
 namespace mapping_3d {
 
 // Wires up the local SLAM stack (i.e. UKF, scan matching, etc.) without loop
-// closure.
+// closure.  在没有闭环的情况下连接本地 SLAM 堆栈（即 UKF、扫描匹配等）。 
 class KalmanLocalTrajectoryBuilder : public LocalTrajectoryBuilderInterface {
  public:
   explicit KalmanLocalTrajectoryBuilder(
@@ -46,11 +46,14 @@ class KalmanLocalTrajectoryBuilder : public LocalTrajectoryBuilderInterface {
   KalmanLocalTrajectoryBuilder& operator=(const KalmanLocalTrajectoryBuilder&) =
       delete;
 
+  // 添加IMU信息，预测
   void AddImuData(common::Time time, const Eigen::Vector3d& linear_acceleration,
                   const Eigen::Vector3d& angular_velocity) override;
+  // 添加点云信息，观测值
   std::unique_ptr<InsertionResult> AddRangefinderData(
       common::Time time, const Eigen::Vector3f& origin,
       const sensor::PointCloud& ranges) override;
+  // 添加里程计信息，观测值
   void AddOdometerData(common::Time time,
                        const transform::Rigid3d& pose) override;
   const PoseEstimate& pose_estimate() const override;
@@ -66,6 +69,7 @@ class KalmanLocalTrajectoryBuilder : public LocalTrajectoryBuilderInterface {
   const proto::LocalTrajectoryBuilderOptions options_;
   mapping_3d::ActiveSubmaps active_submaps_;
 
+  // 记录当前帧点云的时间，全局姿态，全局坐标系下的点云
   PoseEstimate last_pose_estimate_;
 
   // Pose of the last computed scan match.
@@ -78,8 +82,11 @@ class KalmanLocalTrajectoryBuilder : public LocalTrajectoryBuilderInterface {
 
   std::unique_ptr<kalman_filter::PoseTracker> pose_tracker_;
 
+  // 累计点云帧数
   int num_accumulated_;
+  // 第一帧点云位姿
   transform::Rigid3f first_pose_prediction_;
+  // 以{0 0 0}为原点，options_.scans_per_accumulation 帧点云的拼接，类似全局点云地图
   sensor::RangeData accumulated_range_data_;
 };
 

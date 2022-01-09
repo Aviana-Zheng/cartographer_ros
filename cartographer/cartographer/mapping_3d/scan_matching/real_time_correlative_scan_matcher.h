@@ -44,14 +44,17 @@ class RealTimeCorrelativeScanMatcher {
   // Aligns 'point_cloud' within the 'hybrid_grid' given an
   // 'initial_pose_estimate' then updates 'pose_estimate' with the result and
   // returns the score.
+  // 传进来的都是高分辨率的网格和高分辨率点云
   float Match(const transform::Rigid3d& initial_pose_estimate,
               const sensor::PointCloud& point_cloud,
               const HybridGrid& hybrid_grid,
               transform::Rigid3d* pose_estimate) const;
 
  private:
+  // 生成所有可能解的位姿:x  *y *z * rx * ry * rz个
   std::vector<transform::Rigid3f> GenerateExhaustiveSearchTransforms(
       float resolution, const sensor::PointCloud& point_cloud) const;
+  // 打分
   float ScoreCandidate(const HybridGrid& hybrid_grid,
                        const sensor::PointCloud& transformed_point_cloud,
                        const transform::Rigid3f& transform) const;

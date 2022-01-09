@@ -37,7 +37,7 @@ SearchParameters::SearchParameters(const double linear_search_window,
     const float range = point.head<2>().norm();
     max_scan_range = std::max(range, max_scan_range);
   }
-  // 计算角度增长step
+  // 计算角度增长step,1 - 0.001 = 0.999; 保证角度扰动比dmax计算的小一点；
   const double kSafetyMargin = 1. - 1e-3;
   // 角分辨率的推导 一个分辨率栅格对应的角度,计算角分辨率的方法在论文中有体现，公式(7)
   angular_perturbation_step_size =

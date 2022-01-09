@@ -35,6 +35,7 @@ TEST(PrecomputedGridGeneratorTest, TestAgainstNaiveAlgorithm) {
   std::uniform_int_distribution<int> coordinate_distribution(-50, 49);
   std::uniform_real_distribution<float> value_distribution(
       mapping::kMinProbability, mapping::kMaxProbability);
+  // 1000个点
   for (int i = 0; i < 1000; ++i) {
     const auto x = coordinate_distribution(rng);
     const auto y = coordinate_distribution(rng);

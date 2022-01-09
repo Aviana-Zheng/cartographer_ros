@@ -136,6 +136,7 @@ OptimizingLocalTrajectoryBuilder::AddRangefinderData(
   // TODO(hrapp): Handle misses.
   // TODO(hrapp): Where are NaNs in range_data_in_tracking coming from?
   sensor::PointCloud point_cloud;
+  // 选取范围内的hit点
   for (const Eigen::Vector3f& hit : ranges) {
     const Eigen::Vector3f delta = hit - origin;
     const float range = delta.norm();
@@ -148,9 +149,12 @@ OptimizingLocalTrajectoryBuilder::AddRangefinderData(
 
   auto high_resolution_options =
       options_.high_resolution_adaptive_voxel_filter_options();
+  // 计算每一帧点云中每一个体素最少多少个点，  
+  // min_num_points = 150,  scans_per_accumulation = 1
   high_resolution_options.set_min_num_points(
       high_resolution_options.min_num_points() /
       options_.scans_per_accumulation());
+  // 滤波
   sensor::AdaptiveVoxelFilter high_resolution_adaptive_voxel_filter(
       high_resolution_options);
   const sensor::PointCloud high_resolution_filtered_points =
@@ -178,7 +182,7 @@ OptimizingLocalTrajectoryBuilder::AddRangefinderData(
     batches_.push_back(Batch{
         time, point_cloud, high_resolution_filtered_points,
         low_resolution_filtered_points,
-        PredictState(last_batch.state, last_batch.time, time),
+        PredictState(last_batch.state, last_batch.time, time),  // 根据IMU信息预测state
     });
   }
   ++num_accumulated_;
@@ -187,6 +191,7 @@ OptimizingLocalTrajectoryBuilder::AddRangefinderData(
   return MaybeOptimize(time);
 }
 
+// 删除过时的传感器数据
 void OptimizingLocalTrajectoryBuilder::RemoveObsoleteSensorData() {
   if (imu_data_.empty()) {
     batches_.clear();
@@ -198,11 +203,13 @@ void OptimizingLocalTrajectoryBuilder::RemoveObsoleteSensorData() {
     batches_.pop_front();
   }
 
+  // 时间对齐
   while (imu_data_.size() > 1 &&
          (batches_.empty() || imu_data_[1].time <= batches_.front().time)) {
     imu_data_.pop_front();
   }
 
+  // 时间对齐
   while (
       odometer_data_.size() > 1 &&
       (batches_.empty() || odometer_data_[1].time <= batches_.front().time)) {
@@ -210,6 +217,7 @@ void OptimizingLocalTrajectoryBuilder::RemoveObsoleteSensorData() {
   }
 }
 
+// batches中状态变换
 void OptimizingLocalTrajectoryBuilder::TransformStates(
     const transform::Rigid3d& transform) {
   for (Batch& batch : batches_) {
@@ -236,7 +244,7 @@ OptimizingLocalTrajectoryBuilder::MaybeOptimize(const common::Time time) {
       active_submaps_.submaps().front();
   // We transform the states in 'batches_' in place to be in the submap frame as
   // expected by the OccupiedSpaceCostFunctor. This is reverted after solving
-  // the optimization problem.
+  // the optimization problem. 转换到子图框架中，最后恢复
   TransformStates(matching_submap->local_pose().inverse());
   for (size_t i = 0; i < batches_.size(); ++i) {
     Batch& batch = batches_[i];
@@ -345,7 +353,7 @@ OptimizingLocalTrajectoryBuilder::MaybeOptimize(const common::Time time) {
   ceres::Solver::Summary summary;
   ceres::Solve(ceres_solver_options_, &problem, &summary);
   // The optimized states in 'batches_' are in the submap frame and we transform
-  // them in place to be in the local SLAM frame again.
+  // them in place to be in the local SLAM frame again. 转换到全局坐标系下
   TransformStates(matching_submap->local_pose());
   if (num_accumulated_ < options_.scans_per_accumulation()) {
     return nullptr;
@@ -353,14 +361,18 @@ OptimizingLocalTrajectoryBuilder::MaybeOptimize(const common::Time time) {
 
   num_accumulated_ = 0;
 
+  // deque::back()此函数用于引用双端队列容器的最后一个元素。此功能可用于从双端队列的后面获取第一个元素
+  // T_global_newscan
   const transform::Rigid3d optimized_pose = batches_.back().state.ToRigid();
   sensor::RangeData accumulated_range_data_in_tracking = {
       Eigen::Vector3f::Zero(), {}, {}};
 
   for (const auto& batch : batches_) {
+    // T_newscan_scan = T_global_newscan(逆) * T_global_scan
     const transform::Rigid3f transform =
         (optimized_pose.inverse() * batch.state.ToRigid()).cast<float>();
     for (const Eigen::Vector3f& point : batch.points) {
+      // 优化后的点云位置 p_newscan = T_newscan_scan * p_scan
       accumulated_range_data_in_tracking.returns.push_back(transform * point);
     }
   }
@@ -371,7 +383,7 @@ OptimizingLocalTrajectoryBuilder::MaybeOptimize(const common::Time time) {
 
 std::unique_ptr<OptimizingLocalTrajectoryBuilder::InsertionResult>
 OptimizingLocalTrajectoryBuilder::AddAccumulatedRangeData(
-    const common::Time time, const transform::Rigid3d& optimized_pose,
+    const common::Time time, const transform::Rigid3d& optimized_pose,  // T_global_newscan
     const sensor::RangeData& range_data_in_tracking) {
   const sensor::RangeData filtered_range_data = {
       range_data_in_tracking.origin,
@@ -385,6 +397,7 @@ OptimizingLocalTrajectoryBuilder::AddAccumulatedRangeData(
     return nullptr;
   }
 
+  // 记录当前帧点云的时间，全局姿态T_global_newscan，全局坐标系下的点云
   last_pose_estimate_ = {
       time, optimized_pose,
       sensor::TransformPointCloud(filtered_range_data.returns,
@@ -412,9 +425,11 @@ OptimizingLocalTrajectoryBuilder::InsertIntoSubmap(
   // TODO(whess): Use an ImuTracker to track the gravity direction.
   const Eigen::Quaterniond kFakeGravityOrientation =
       Eigen::Quaterniond::Identity();
+  // 如果地图中点云帧数没有超限，则直接插入点云
+  // 否则新生成submap，submap的local pose的平移是第一帧点云的origin，通过重力计算的旋转方向
   active_submaps_.InsertRangeData(
       sensor::TransformRangeData(range_data_in_tracking,
-                                 pose_observation.cast<float>()),
+                                 pose_observation.cast<float>()),  // 全局坐标系的点云
       kFakeGravityOrientation);
 
   return std::unique_ptr<InsertionResult>(
@@ -422,19 +437,25 @@ OptimizingLocalTrajectoryBuilder::InsertIntoSubmap(
                           std::move(insertion_submaps)});
 }
 
+// line185 PredictState(last_batch.state, last_batch.time, time)
+// 根据IMU信息预测state
 OptimizingLocalTrajectoryBuilder::State
 OptimizingLocalTrajectoryBuilder::PredictState(const State& start_state,
                                                const common::Time start_time,
                                                const common::Time end_time) {
+  // cend()它返回一个常数迭代器，该常数引用双端队列中的过去-最后一个元素。
   auto it = --imu_data_.cend();
   while (it->time > start_time) {
+    // cbegin()它返回一个指向集合开头的常量迭代器。
     CHECK(it != imu_data_.cbegin());
     --it;
   }
 
+  // 返回以start位置为坐标系原点的，到end的delta 速度 旋转， it是最后一个小于start_time的位置
   const IntegrateImuResult<double> result =
       IntegrateImu(imu_data_, start_time, end_time, &it);
 
+  // 包含隐式转换，std::array<double, 4>到Eigen::Quaterniond
   const Eigen::Quaterniond start_rotation(
       start_state.rotation[0], start_state.rotation[1], start_state.rotation[2],
       start_state.rotation[3]);
@@ -442,15 +463,20 @@ OptimizingLocalTrajectoryBuilder::PredictState(const State& start_state,
   const double delta_time_seconds = common::ToSeconds(end_time - start_time);
 
   // TODO(hrapp): IntegrateImu should integration position as well.
+  // 包含隐式转换，std::array<double, 3>到Eigen::Vector3d
+  // x_end = x_start + delta_t * v
   const Eigen::Vector3d position =
       Eigen::Map<const Eigen::Vector3d>(start_state.translation.data()) +
       delta_time_seconds *
           Eigen::Map<const Eigen::Vector3d>(start_state.velocity.data());
+  // 更新速度，包含隐式转换，std::array<double, 3>到Eigen::Vector3d
+  // v_end = v_start + T * delta_v - v_g
   const Eigen::Vector3d velocity =
       Eigen::Map<const Eigen::Vector3d>(start_state.velocity.data()) +
       start_rotation * result.delta_velocity -
       gravity_constant_ * delta_time_seconds * Eigen::Vector3d::UnitZ();
 
+  // 构造函数隐式转换
   return State(position, orientation, velocity);
 }
 

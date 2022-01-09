@@ -29,15 +29,16 @@
 namespace cartographer {
 namespace mapping_3d {
 
+// 父类，等待子类实现
 class LocalTrajectoryBuilderInterface {
  public:
   using PoseEstimate = mapping::GlobalTrajectoryBuilderInterface::PoseEstimate;
 
   struct InsertionResult {
     common::Time time;
-    sensor::RangeData range_data_in_tracking;
-    transform::Rigid3d pose_observation;
-    std::vector<std::shared_ptr<const Submap>> insertion_submaps;
+    sensor::RangeData range_data_in_tracking; // 当前子图下的点云
+    transform::Rigid3d pose_observation;    // local位姿
+    std::vector<std::shared_ptr<const Submap>> insertion_submaps;  // 两个有效的子图
   };
 
   virtual ~LocalTrajectoryBuilderInterface() {}

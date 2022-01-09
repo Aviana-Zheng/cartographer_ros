@@ -77,8 +77,11 @@ class OptimizationProblem {
  private:
   mapping::sparse_pose_graph::proto::OptimizationProblemOptions options_;
   FixZ fix_z_;
+  // imu_data_[trajectory_id].push_back，索引是trajectory_id
   std::vector<std::deque<ImuData>> imu_data_;
+  // 索引是trajectory_id
   std::vector<std::vector<NodeData>> node_data_;
+  // 索引是trajectory_id
   std::vector<std::vector<SubmapData>> submap_data_;
   double gravity_constant_ = 9.8;
 };

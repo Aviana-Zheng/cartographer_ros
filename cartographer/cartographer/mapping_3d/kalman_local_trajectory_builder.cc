@@ -46,6 +46,7 @@ KalmanLocalTrajectoryBuilder::KalmanLocalTrajectoryBuilder(
 
 KalmanLocalTrajectoryBuilder::~KalmanLocalTrajectoryBuilder() {}
 
+// 添加IMU信息，预测
 void KalmanLocalTrajectoryBuilder::AddImuData(
     const common::Time time, const Eigen::Vector3d& linear_acceleration,
     const Eigen::Vector3d& angular_velocity) {
@@ -65,6 +66,7 @@ void KalmanLocalTrajectoryBuilder::AddImuData(
                                                   &unused_covariance_estimate);
 }
 
+// 添加点云信息，观测值
 std::unique_ptr<KalmanLocalTrajectoryBuilder::InsertionResult>
 KalmanLocalTrajectoryBuilder::AddRangefinderData(
     const common::Time time, const Eigen::Vector3f& origin,
@@ -78,25 +80,30 @@ KalmanLocalTrajectoryBuilder::AddRangefinderData(
   kalman_filter::PoseCovariance unused_covariance_prediction;
   pose_tracker_->GetPoseEstimateMeanAndCovariance(
       time, &pose_prediction, &unused_covariance_prediction);
+  // 第一次添加点云信息
   if (num_accumulated_ == 0) {
     first_pose_prediction_ = pose_prediction.cast<float>();
     accumulated_range_data_ =
         sensor::RangeData{Eigen::Vector3f::Zero(), {}, {}};
   }
 
+  // 第一帧点云和当前帧点云的位姿差
   const transform::Rigid3f tracking_delta =
       first_pose_prediction_.inverse() * pose_prediction.cast<float>();
+  // 将点云转换到第一帧点云所在位置
   const sensor::RangeData range_data_in_first_tracking =
       sensor::TransformRangeData(sensor::RangeData{origin, ranges, {}},
                                  tracking_delta);
   for (const Eigen::Vector3f& hit : range_data_in_first_tracking.returns) {
     const Eigen::Vector3f delta = hit - range_data_in_first_tracking.origin;
     const float range = delta.norm();
+    // hit点云范围在min和max之间的，直接添加至accumulated_range_data_的return
+    // 不在的插值添加进misses
     if (range >= options_.min_range()) {
       if (range <= options_.max_range()) {
         accumulated_range_data_.returns.push_back(hit);
       } else {
-        // We insert a ray cropped to 'max_range' as a miss for hits beyond the
+        // We insert a ray cropped(裁剪) to 'max_range' as a miss for hits beyond the
         // maximum range. This way the free space up to the maximum range will
         // be updated.
         accumulated_range_data_.misses.push_back(
@@ -109,6 +116,7 @@ KalmanLocalTrajectoryBuilder::AddRangefinderData(
 
   if (num_accumulated_ >= options_.scans_per_accumulation()) {
     num_accumulated_ = 0;
+    // 转换为子图坐标系下的点云
     return AddAccumulatedRangeData(
         time, sensor::TransformRangeData(accumulated_range_data_,
                                          tracking_delta.inverse()));
@@ -119,6 +127,7 @@ KalmanLocalTrajectoryBuilder::AddRangefinderData(
 std::unique_ptr<KalmanLocalTrajectoryBuilder::InsertionResult>
 KalmanLocalTrajectoryBuilder::AddAccumulatedRangeData(
     const common::Time time, const sensor::RangeData& range_data_in_tracking) {
+  // 滤波
   const sensor::RangeData filtered_range_data = {
       range_data_in_tracking.origin,
       sensor::VoxelFiltered(range_data_in_tracking.returns,
@@ -131,6 +140,7 @@ KalmanLocalTrajectoryBuilder::AddAccumulatedRangeData(
     return nullptr;
   }
 
+  // 在当前时间time进行预测
   transform::Rigid3d pose_prediction;
   kalman_filter::PoseCovariance unused_covariance_prediction;
   pose_tracker_->GetPoseEstimateMeanAndCovariance(
@@ -138,12 +148,14 @@ KalmanLocalTrajectoryBuilder::AddAccumulatedRangeData(
 
   std::shared_ptr<const Submap> matching_submap =
       active_submaps_.submaps().front();
+  // 当前子图到当前帧的位姿
   transform::Rigid3d initial_ceres_pose =
       matching_submap->local_pose().inverse() * pose_prediction;
   sensor::AdaptiveVoxelFilter adaptive_voxel_filter(
       options_.high_resolution_adaptive_voxel_filter_options());
   const sensor::PointCloud filtered_point_cloud_in_tracking =
       adaptive_voxel_filter.Filter(filtered_range_data.returns);
+  // ceres优化求解
   if (options_.kalman_local_trajectory_builder_options()
           .use_online_correlative_scan_matching()) {
     // We take a copy since we use 'intial_ceres_pose' as an output argument.
@@ -166,8 +178,10 @@ KalmanLocalTrajectoryBuilder::AddAccumulatedRangeData(
                               {&low_resolution_point_cloud_in_tracking,
                                &matching_submap->low_resolution_hybrid_grid()}},
                              &pose_observation_in_submap, &summary);
+  // 转换为全局位姿
   const transform::Rigid3d pose_observation =
       matching_submap->local_pose() * pose_observation_in_submap;
+  // 添加观测值
   pose_tracker_->AddPoseObservation(
       time, pose_observation,
       options_.kalman_local_trajectory_builder_options()
@@ -178,6 +192,7 @@ KalmanLocalTrajectoryBuilder::AddAccumulatedRangeData(
   pose_tracker_->GetPoseEstimateMeanAndCovariance(
       time, &scan_matcher_pose_estimate_, &unused_covariance_estimate);
 
+  // 记录当前帧点云的时间，全局姿态，全局坐标系下的点云
   last_pose_estimate_ = {
       time, scan_matcher_pose_estimate_,
       sensor::TransformPointCloud(filtered_range_data.returns,
@@ -186,6 +201,7 @@ KalmanLocalTrajectoryBuilder::AddAccumulatedRangeData(
   return InsertIntoSubmap(time, filtered_range_data, pose_observation);
 }
 
+// 添加里程计信息，观测值
 void KalmanLocalTrajectoryBuilder::AddOdometerData(
     const common::Time time, const transform::Rigid3d& pose) {
   if (!pose_tracker_) {
@@ -219,9 +235,11 @@ KalmanLocalTrajectoryBuilder::InsertIntoSubmap(
   for (std::shared_ptr<Submap> submap : active_submaps_.submaps()) {
     insertion_submaps.push_back(submap);
   }
+  // 如果地图中点云帧数没有超限，则直接插入点云
+  // 否则新生成submap，submap的local pose的平移是第一帧点云的origin，通过重力计算的旋转方向
   active_submaps_.InsertRangeData(
       sensor::TransformRangeData(range_data_in_tracking,
-                                 pose_observation.cast<float>()),
+                                 pose_observation.cast<float>()),  // 全局坐标系的点云
       pose_tracker_->gravity_orientation());
   return std::unique_ptr<InsertionResult>(
       new InsertionResult{time, range_data_in_tracking, pose_observation,

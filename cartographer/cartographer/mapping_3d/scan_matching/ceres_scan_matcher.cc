@@ -37,6 +37,7 @@ namespace scan_matching {
 namespace {
 
 /*
+optimization_problem.cc
 struct ConstantYawQuaternionPlus {
    template <typename T>
    bool operator()(const T* x, const T* delta, T* x_plus_delta) const {

@@ -45,6 +45,25 @@ namespace sparse_pose_graph {
 
 namespace {
 
+/*
+ceres_scan_matcher.cc
+struct YawOnlyQuaternionPlus {
+  template <typename T>
+  // https://github.com/cartographer-project/cartographer/issues/1770
+  // delta represents the change in yaw.
+  // 此处的'delta'不是angle-axis？ 此处取了近似？ delta 约等于 sin(delta)
+  bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
+    const T clamped_delta = common::Clamp(delta[0], T(-0.5), T(0.5));
+    T q_delta[4];
+    q_delta[0] = ceres::sqrt(1. - clamped_delta * clamped_delta);
+    q_delta[1] = T(0.);
+    q_delta[2] = T(0.);
+    q_delta[3] = clamped_delta;
+    ceres::QuaternionProduct(q_delta, x, x_plus_delta);
+    return true;
+  }
+};
+*/
 struct ConstantYawQuaternionPlus {
   template <typename T>
   bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
@@ -120,6 +139,7 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints) {
   ceres::Problem::Options problem_options;
   ceres::Problem problem(problem_options);
 
+  // z方向是否不需要优化
   const auto translation_parameterization =
       [this]() -> std::unique_ptr<ceres::LocalParameterization> {
     return fix_z_ == FixZ::kYes
@@ -201,12 +221,15 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints) {
 
     // Skip IMU data before the first node of this trajectory.
     auto it = imu_data.cbegin();
+    // 对齐时间戳，最后一个比node_data[0].time小的位置
     while ((it + 1) != imu_data.cend() && (it + 1)->time <= node_data[0].time) {
       ++it;
     }
 
     for (size_t node_index = 1; node_index < node_data.size(); ++node_index) {
       auto it2 = it;
+      // IMU插值
+      // 返回以start位置为坐标系原点的，到end的delta  速度 旋转， it是最后一个小于start_time的位置
       const IntegrateImuResult<double> result =
           IntegrateImu(imu_data, node_data[node_index - 1].time,
                        node_data[node_index].time, &it);
@@ -218,8 +241,10 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints) {
         const common::Duration second_duration = third_time - second_time;
         const common::Time first_center = first_time + first_duration / 2;
         const common::Time second_center = second_time + second_duration / 2;
+        // 返回以start位置为坐标系原点的，到end的delta  速度 旋转， it是最后一个小于start_time的位置
         const IntegrateImuResult<double> result_to_first_center =
             IntegrateImu(imu_data, first_time, first_center, &it2);
+        // 返回以start位置为坐标系原点的，到end的delta  速度 旋转， it是最后一个小于start_time的位置
         const IntegrateImuResult<double> result_center_to_center =
             IntegrateImu(imu_data, first_center, second_center, &it2);
         // 'delta_velocity' is the change in velocity from the point in time
@@ -227,6 +252,9 @@ void OptimizationProblem::Solve(const std::vector<Constraint>& constraints) {
         // and third pose. It is computed from IMU data and still contains a
         // delta due to gravity. The orientation of this vector is in the IMU
         // frame at the second pose.
+        // delta_v-new = R_i_i-1 * R_i-1_center1 * delta_v-old
+        // AccelerationCostFunction中将其转为全局坐标系下的delta_v ，并去掉重力加速度的影响
+        // line46
         const Eigen::Vector3d delta_velocity =
             (result.delta_rotation.inverse() *
              result_to_first_center.delta_rotation) *

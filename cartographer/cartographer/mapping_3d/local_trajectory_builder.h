@@ -26,6 +26,7 @@
 namespace cartographer {
 namespace mapping_3d {
 
+// 根据trajectory_builder_3d.lua 中 use = "KALMAN",  -- or "OPTIMIZING".决定slam后端方法
 std::unique_ptr<LocalTrajectoryBuilderInterface> CreateLocalTrajectoryBuilder(
     const proto::LocalTrajectoryBuilderOptions&
         local_trajectory_builder_options);

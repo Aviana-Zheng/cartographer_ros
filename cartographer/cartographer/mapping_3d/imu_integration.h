@@ -31,10 +31,11 @@ namespace mapping_3d {
 
 struct ImuData {  // IMU数据
   common::Time time;
-  Eigen::Vector3d linear_acceleration;
-  Eigen::Vector3d angular_velocity;
+  Eigen::Vector3d linear_acceleration;  // 机体轴
+  Eigen::Vector3d angular_velocity;     // 机体轴
 };
 
+// 返回以start位置为坐标系原点的，到end的delta  速度 旋转， it是最后一个小于start_time的位置
 template <typename T>
 struct IntegrateImuResult {
   Eigen::Matrix<T, 3, 1> delta_velocity;
@@ -42,6 +43,7 @@ struct IntegrateImuResult {
 };
 
 // Returns velocity delta in map frame.
+// 返回以start位置为坐标系原点的，到end的delta  速度 旋转， it是最后一个小于start_time的位置
 IntegrateImuResult<double> IntegrateImu(
     const std::deque<ImuData>& imu_data, const common::Time start_time,
     const common::Time end_time, std::deque<ImuData>::const_iterator* it);
@@ -73,11 +75,13 @@ IntegrateImuResult<T> IntegrateImu(
     common::Time next_time = std::min(next_imu_data, end_time);
     const T delta_t(common::ToSeconds(next_time - current_time));
 
+    // delta_AngleAxisVector = w * delta_t
     const Eigen::Matrix<T, 3, 1> delta_angle =
         (angular_velocity_calibration * (*it)->angular_velocity.cast<T>()) *
         delta_t;
     result.delta_rotation *=
         transform::AngleAxisVectorToRotationQuaternion(delta_angle);
+    // delta_v = delta_q * (a * delta_t);
     result.delta_velocity +=
         result.delta_rotation * ((linear_acceleration_calibration *
                                   (*it)->linear_acceleration.cast<T>()) *

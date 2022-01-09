@@ -36,16 +36,16 @@ class PrecomputationGrid : public HybridGridBase<uint8> {
   }
 };
 
-// Converts a HybridGrid to a PrecomputationGrid representing the same data,
+// Converts a HybridGrid to a PrecomputationGrid representing(表示) the same data,
 // but only using 8 bit instead of 2 x 16 bit.
 PrecomputationGrid ConvertToPrecomputationGrid(const HybridGrid& hybrid_grid);
 
 // Returns a grid of the same resolution containing the maximum value of
 // original voxels in 'grid'. This maximum is over the 8 voxels that have
-// any combination of index components optionally increased by 'shift'.
+// any combination(组合) of index components(分量) optionally increased by 'shift'(移位).
 // If 'shift' is 2 ** (depth - 1), where depth 0 is the original grid, and this
 // is using the precomputed grid of one depth before, this results in
-// precomputation grids analogous to the 2D case.
+// precomputation grids analogous(类似于) to the 2D case.
 PrecomputationGrid PrecomputeGrid(const PrecomputationGrid& grid,
                                   bool half_resolution,
                                   const Eigen::Array3i& shift);

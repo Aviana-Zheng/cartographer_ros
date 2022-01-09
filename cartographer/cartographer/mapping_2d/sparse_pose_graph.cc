@@ -80,7 +80,7 @@ std::vector<mapping::SubmapId> SparsePoseGraph::GrowSubmapTransformsAsNeeded(
           trajectory_id,
           sparse_pose_graph::ComputeSubmapPose(*insertion_submaps[0]));
     }
-    // 为新建的子图赋予唯一的SubmapId
+    // 为子图赋予唯一的SubmapId
     const mapping::SubmapId submap_id{
         trajectory_id, static_cast<int>(submap_data[trajectory_id].size()) - 1};
     // SparsePoseGraph::AddScan已经将submap_data_更新

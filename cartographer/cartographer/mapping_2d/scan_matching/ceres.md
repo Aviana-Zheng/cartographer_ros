@@ -37,7 +37,15 @@ $$
     \end{split}
 \end{equation}
 $$
-我们的任务就是找到一组满足约束 $l_j \le x_j \le u_j$的 $x_1, \cdots, x_k$， 使得优化目标函数 $\begin{split}\frac{1}{2}\sum_{i} \rho_i\left(\left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2\right)\end{split}$取值最小。在Ceres库中，优化参数  $x_1, \cdots, x_k$被称为**参数块(ParameterBlock)**，它们的取值就是我们要寻找的解。 $l_j, u_j$分别是第*j*个优化参数 $x_j$的下界和上界。表达式 $\rho_i\left(\left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2\right)$被称为**残差项(ResidualBlock)**。    其中，是 $f_i(\cdot)$**代价函数(CostFunction)**， $\rho_i(\cdot)$则是关于代价函数平方的**核函数(LossFunction)**。    核函数存在的意义主要是为了降低野点(outliers)对于解的影响。
+我们的任务就是找到一组满足约束 $l_j \le x_j \le u_j$的 $x_1, \cdots, x_k$， 使得优化目标函数 $\begin{split}\frac{1}{2}\sum_{i} \rho_i\left(\left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2\right)\end{split}$取值最小。在Ceres库中，优化参数  $x_1, \cdots, x_k$被称为**参数块(ParameterBlock)**，它们的取值就是我们要寻找的解。 $l_j, u_j$分别是第*j*个优化参数 $x_j$的下界和上界。表达式 $\rho_i\left(\left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2\right)$被称为**残差项(ResidualBlock)**。    其中，是 $f_i(\cdot)$**代价函数(CostFunction)**，
+
+> a CostFunction is responsible for computing a vector of residuals and Jacobian matrices
+>
+> CostFunction is responsible for computing the vector $f_i\left(x_1, \cdots ,x_k\right)$ and the Jacobian matrices
+>
+> $\mathcal{J}_i = \frac{\partial}{\partial x_i} f_i\left(x_1, \cdots ,x_k\right) \qquad \forall i \in {1,\cdots,k}$
+
+ $\rho_i(\cdot)$则是关于代价函数平方的**核函数(LossFunction)**。    核函数存在的意义主要是为了降低野点(outliers)对于解的影响。
 
 很多时候我们说最小二乘都是拿来做曲线拟合的，实际只要能够把问题描述成式(1)的形式，就都可以使用Ceres来求解。使用起来也比较简单， 只要按照[教程](http://www.ceres-solver.org/tutorial.html)介绍的套路，提供CostFunction的计算方式，描述清楚每个ResidualBlock以及LossFunction即可。    如下边的示例代码所示，一般我们需要定义三个对象，problem用于描述将要求解的问题，options提供了很多配置项，而summary用于记录求解过程。
 
@@ -51,7 +59,211 @@ Ceres的求解过程包括构建最小二乘和求解最小二乘问题两部分
 
 https://blog.csdn.net/weixin_43991178/article/details/100532618
 
-### 1.1 Problem::AddResidualBlock( )
+### 1.1 ceres使用流程
+
+原文：[优化库——ceres（一）快速概览](https://blog.csdn.net/jdy_lyy/article/details/119336403)
+
+![](assets/ceres1.png)
+
+![](assets/ceres2.png)
+
+
+
+<font color = 'Blue'> Ceres Solver 只接受最小二乘优化，也就是 $\min r^{T} r$；若要对残差加权重，使用马氏距离，即 $\min r^{T} P^{-1} r$ ，则要对 信息矩阵  $ P^{-1} $ 做 Cholesky分解，即 $ L L^{T} = P^{-1}$， 则 $ d = r^{T} (L L^{T}) r = (L^T r)^T (L^T r)$ ，令 $r^{'} = L^T r$ ，最终 $\min r^{'T} r^{'}$.</font>
+
+#### 1.1.1 求导方法：构建代价函数（STEP2）
+
+在SLAM中，使用的一般都是解析求导（自定义），这种方法需要自己填入雅克比函数
+
+> **求导方法**
+>
+> Ceres提供了三种求导方法，分别是：**解析求导、数值求导与自动求导**。
+
+##### 1.1.1.1 解析求导（自定义求导）
+
+**解析求导**–Analytic Derivatives（在一些博客中还有人说为 **自定义**）
+
+下面以最小二乘 $ \underset{x}{\min} \frac{1}{2}(10-x)^{2} $ 为例解析求导。解析求导需要自行定义迭代求导时的雅克比矩阵jacobians和残差。显然残差为 $(10−x)$ ，而雅可比矩阵维度为 $1∗1$ 且为常数-1。在求导的Evaluate函数中定义残差和雅克比如下：
+
+> - 构建一个 继承自 ceres::SizedCostFunction<1,1> 的类，同样，对于模板参数的数字，第一个为残差的维度，后面几个为待优化状态量的维度
+>
+>
+> - 重载 虚函数virtual bool Evaluate(double const* const* parameters, double *residuals, double **jacobians) const，根据 待优化变量，实现 残差和雅克比矩阵的计算
+>
+> 在ceres中的代价函数里面 Evaluate采用的是纯虚函数
+>
+> ```c++
+> //虚函数的作用是允许在派生类中重新定义与基类同名的函数，并且可以通过基类指针或引用来访问基类和派生类中的同名函数。 
+> virtual bool Evaluate(double const* const* parameters,
+>                      double* residuals,
+>                      double** jacobians) const = 0;
+> ```
+>
+> 
+
+eg:
+
+```c++
+class SimpleCostFunctor : public ceres::SizedCostFunction<1,1> {
+public:
+virtual ~SimpleCostFunctor() {};
+
+virtual bool Evaluate(
+double const* const* parameters, double *residuals, double** jacobians) const {
+   const double x = parameters[0][0];
+
+   residuals[0] = 10 - x; // r(x) = 10 - x
+   
+     if(jacobians != NULL && jacobians[0] != NULL) {
+      jacobians[0][0] = -1; // r'(x) = -1
+     }
+     return true;
+   }
+};
+```
+
+
+
+##### 1.1.1.2 **数值求导**–Numeric derivatives
+
+> 数值求导核心思想是，当增量很小时，可以采用 $\underset{\Delta x \to 0}{\lim} \frac{f(x+\Delta x)-f(x)}{\Delta x} $ 近似求导，由此我们不需要实际计算导数的表达式，也可以从数值上进行近似。为此，求导方式的代码只需要写清楚残差怎么计算即可：
+>
+> - **数值求导法** 也是构造 **代价函数结构体**，但在重载 括号`()` 时**没有用模板**
+>
+> ```c++
+> //仿函数
+> struct CostFunctorNum {
+> bool operator()(const double *const x, double *residual) const {
+>   residual[0] = 10.0 - x[0]; // r(x) = 10 - x
+>   return true;
+> }
+> };
+> 
+> // 在实例化代价函数时也稍微有点区别，多了一个模板参数 ceres::CENTRAL
+> ceres::CostFunction *cost_function;
+> cost_function =
+> new ceres::NumericDiffCostFunction<CostFunctorNum, ceres::CENTRAL, 1, 1>(new CostFunctorNum);
+> ```
+>
+> 数值求导方法又具体分为：前向求导、中心求导和Ridders方法，对应的精度和耗时依次增加。官方建议在不考虑时间约束时采用Ridders方法，中心求导是一个均衡的选择。
+
+
+
+##### 1.1.1.3 **自动求导**–Automatic Derivatives
+
+> 自动求导是Ceres很神奇的一个功能，能够对于一些数据形式较为基础的表达式，自动求解出导数形式（注意这里不是数值解）。采用的原理是对偶数（dual numbers）和Jets格式实现的，不理解意具体方法也不影响使用。代价函数编写时和数值方式接近，采用类模板形式。注意采用自动求导时即使是整数也要写成浮点型，否则会报错Jet类型匹配错误。
+>
+> - 构造 **代价函数结构体**（例如：`struct CostFunctor`），在其结构体内对 **模板**括号`()` 重载，定义残差
+> - 在重载的 `()` 函数 形参 中，**最后一个为残差，前面几个为待优化状态量**
+>
+> ```c++
+> struct CostFunctor {
+> template<typename T>
+> bool operator()(const T *const x, T *residual) const {
+>   residual[0] = 10.0 - x[0]; // r(x) = 10 - x
+> return true;
+> }
+> };
+> //创建代价函数的实例，对于模板参数的数字，第一个为残差的维度，后面几个为待优化状态量的维度
+> ceres::CostFunction *cost_function;
+> cost_function = new ceres::AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor);
+> ```
+>
+> 
+
+
+
+##### 1.1.1.4 求导方法的选择
+
+求导方法的选择的依据是多方面的，一方面是精度和速度，另一方面是使用的便捷性。毫无疑问，在代码优化的情况下，解析求导方式求解速度最快，但缺点是需要人工计算雅克比矩阵，失去了便捷性。数值求导几乎是万能的，只是时间稍慢。而自动求导，虽然较为方便，但也存在问题，例如传入的变量类型若不是较为基础的数据格式则不可用自动求导。
+
+官方给出了几种方法的计算时间如下：
+![](assets/ceres3.png)
+
+（多种求导方法耗时比较。从上到下：解析求导、优化后的解析求导、向前数值求导、中心数值求导、Ridders数值求导、自动求导）
+
+可以看出，代码优化较好的解析法求导速度最快，其次是自动求导，数值求导相对较慢。
+
+#### 1.1.2  构建优化问题并求解(STEP3\4\5)
+
+**构建优化问题**
+
+- 声明 `ceres::Problem problem;`
+
+- 通过 `AddResidualBlock` 将 **代价函数(cost function)、损失函数(loss function) 和 待优化状态量** 添加到 `problem`
+
+  调用`AddResidualBlock`函数添加残差块，这个函数里面直接调用函数`InternalAddParameterBlock`，对比上面内容，事实上会调用`AddParameterBlock(double* values, int size)`函数，而`AddParameterBlock`函数里面实际上会调用`SetParameterization`函数。
+
+  <font color='Blue'>也就是说如果我们的参数属于正常的plus更新的话，也就是没有过参数（LocalParameterization），没有manifold space，那么就完全不需要调用AddParameterBlock或者SetParameterization函数</font>
+
+  **如果我们的参数需要自定义更新方式，我们可以调用AddParameterBlock或者SetParameterization函数任何一个都可以**，调用方式如下
+
+  ```c++
+  // 方法1
+  void AddParameterBlock(double* values, int size,  LocalParameterization* local_parameterization);
+  // 方法2
+  void SetParameterization(double* values, LocalParameterization* local_parameterization);
+  ```
+
+  这里提一下既然程序中给了默认的参数化方法，我们自己添加的话，程序就会调用我们的自定义方法。
+   还有一个比较有意思的地方是程序虽然反复调用了`AddParameterBlock`，但是参数并不会添加重复，因为内部使用map管理，每次添加的时候，都会保证地址不重复。
+
+```c++
+ceres::CostFunction *cost_function;
+cost_function = new ceres::AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor);
+
+ceres::Problem problem;
+problem.AddResidualBlock(cost_function, NULL, &x);
+```
+
+**配置求解器，并计算，输出结果**
+
+```c++
+ceres::Solver::Options options;
+options.max_num_iterations = 25;
+options.linear_solver_type = ceres::DENSE_QR;
+options.minimizer_progress_to_stdout = true;
+
+ceres::Solver::Summary summary;
+ceres::Solve(options, &problem, &summary);
+std::cout << summary.BriefReport() << "\n";
+```
+
+**总结一下**
+
+- 参数正常更新，只需要调用AddResidualBlock
+- 参数自定义更新，需要调用AddParameterBlock或者SetParameterization，要注意，数量一定要添加对，因为比如vins-mono里面参数非常多，搞不清楚参数维度就会很容易出错。
+
+### 1.2  Problem类函数总览
+
+整个Problem函数内部的核心操作实际上是由类对象内部的`internal::scoped_ptr<internal::ProblemImpl> problem_impl_;`操作的，这层关系就好比STL 提供的 queue 和stack和deque的关系，queue 和stac的内部实际上都是deque实现的专业术语叫做配接器 (adapters)
+
+>- 容器 (containers) : 各种数据结构，如 vector, list, deque, set, map, 用来存放数据
+>
+>- 算法 (algorithms) : 各种常用算法如 sort, search, copy, erase···
+>
+>- 迭代器 (iterators) : 扮演容器与算法之间的胶合剂，是所谓的＂泛型指针" 章。共有五种类型，以及其它衍生变化。从实现的角度来看，迭代器是一种将 operator*, operator->, operator++, operator-- 等指针相关操作予以重载的 class template 。所有 STL 容器都附带有自己专属的迭代器—一是的，只有容器设计者才知道如何遍历自己的元素。
+>
+>- 仿函数 (functors) : 行为类似函数，可作为算法的某种策略 (policy)
+>
+>
+>- 配接器 (adapters) : 一种用来修饰容器 (containers) 或仿函数 (functors)或迭代器 (iterators) 接口的东西。
+>
+>例如， STL 提供的 queue 和stack, 虽然看似容器，其实只能算是一种容器配接器，因为它们的底部完全借助 deque, 所有操作都由底层的 deque 供应。改变 functor 接口者，称为function adapter; 改变 container 接口者，称为 container adapter; 改变 iterator接口者，称为 iterator adapter 。
+>
+>- 配置器 (allocators): 负责空间配置与管理。从实现的角度来看，配置器是一个实现了动态空间配置、空间管理、空间释放的 class template 。
+>
+>![](assets/ceres4.png)
+
+**ceres::Problem主要函数如下**
+
+![](assets/ceres5.png)
+
+重点看一下函数`AddResidualBlock`
+
+![](assets/ceres6.png)
+
+#### 1.2.1 Problem::AddResidualBlock( )
 
 `AddResidualBlock()`顾名思义主要用于向`Problem`类传递残差模块的信息，函数原型如下，传递的参数主要包括代价函数模块、损失函数模块和参数模块。
 
@@ -60,13 +272,9 @@ https://blog.csdn.net/weixin_43991178/article/details/100532618
 ```c++
 problem.AddResidualBlock(new ceres::AutoDiffCostFunction<CostFunction, m, n>(new CostFunction(/* 构造参数 */)),loss_function, params);
 
-ResidualBlockId Problem::AddResidualBlock(CostFunction *cost_function, 
-										  LossFunction *loss_function, 
-										  const vector<double *> parameter_blocks)
+ResidualBlockId Problem::AddResidualBlock(CostFunction *cost_function, LossFunction *loss_function, const vector<double *> parameter_blocks)
 										  
-ResidualBlockId Problem::AddResidualBlock(CostFunction *cost_function, 
-										  LossFunction *loss_function,
-										  double *x0, double *x1, ...)
+ResidualBlockId Problem::AddResidualBlock(CostFunction *cost_function,  LossFunction *loss_function, double *x0, double *x1, ...)
 ```
 
 类AutoDiffCostFunction是一个模板类，其模板参数列表中的CostFunction是计算残差项代价的仿函数类型，m是CostFunction所提供的残差项数量，n则是优化参数的数量。
@@ -97,9 +305,7 @@ public:
 
 CostFunction只是提供代价函数的计算方式，而残差的计算则有Ceres根据核函数的选择自己计算了。核函数并不是必须提供的，当不需要的时候可以空指针(nullptr)来代替，    此时残差项为  $\rho_i\left(\left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2\right) = \left\|f_i\left(x_1, \cdots ,x_k\right)\right\|^2$。
 
-
-
-### 1.2 Problem::AddParameterBlock( )
+####  1.2.2 Problem::AddParameterBlock( )
 
 用户在调用AddResidualBlock( )时其实已经隐式地向Problem传递了参数模块，但在一些情况下，需要用户显示地向Problem传入参数模块（通常出现在需要对优化参数进行重新参数化的情况）。Ceres提供了Problem::AddParameterBlock( )函数用于用户显式传递参数模块：
 
@@ -109,7 +315,7 @@ void Problem::AddParameterBlock(double *values, int size)
 void Problem::AddParameterBlock(double *values, int size, LocalParameterization *local_parameterization)
 ```
 
-#### 1.2.1 LocalParameterization
+##### 1.2.2.1 LocalParameterization
 
 LocalParameterization类的作用是解决非线性优化中的过参数化问题。所谓过参数化，即待优化参数的实际自由度小于参数本身的自由度。例如在SLAM中，当采用四元数表示位姿时，由于四元数本身的约束（模长为1），实际的自由度为3而非4。此时，若直接传递四元数进行优化，冗余的维数会带来计算资源的浪费，需要使用Ceres预先定义的QuaternionParameterization对优化参数进行重构：
 
@@ -128,6 +334,10 @@ problem.AddParameterBlock(quaternion, 4, local_param)//重构参数，优化时�
  [2]《A Tutorial on Graph-Based [SLAM](https://so.csdn.net/so/search?q=SLAM)》
  [3]《流形与几何初步》
  [4]《Quater[nio](https://so.csdn.net/so/search?q=nio)n kinematics for the error-state Kalman filter》
+
+然后在ceres里面，如果使用的是自动求导，然后再结合爬山法，那么每步迭代中都会产生一个四维的delta(迭代的增量，参考LM等算法)，那么根据常规的爬山法，这样就仅仅需要将 原四元数“加上”这个迭代产生的delta就能够得到新的四元数了，这里问题就来了，直接加上以后这个四元数就不再是一个单位四元数了，就没有意义了，如果非得这么用的话就得每次迭代过后都将这个四元数进行一个归一化处理。
+
+**解决方案**：
 
 对于四元数或者旋转矩阵这种使用过参数化表示旋转的方式，它们是不支持广义的加法（因为使用普通的加法就会打破其 constraint，比如旋转矩阵加旋转矩阵得到的就不再是旋转矩阵），所以我们在使用ceres对其进行迭代更新的时候就需要自定义其更新方式了，具体的做法是实现一个参数本地化的子类，需要继承于LocalParameterization，LocalParameterization是纯虚类，所以我们继承的时候要把所有的纯虚函数都实现一遍才能使用该类生成对象.
 
@@ -187,9 +397,7 @@ class LocalParameterization {
 };
 ```
 
-
-
-#### 1.2.2 自定义LocalParameterization
+#####  1.2.2.2 自定义LocalParameterization
 
 `LocalParaneterization`本身是一个虚基类，详细定义如下。用户可以自行定义自己需要使用的子类，或使用Ceres预先定义好的子类。
 
@@ -213,7 +421,9 @@ class LocalParameterization {
 
 上述成员函数中，需要我们改写的主要为`GlobalSize()`、`ComputeJacobian()`、`GlobalSize()`和`LocalSize()`，这里我们以ceres预先定义好的`QuaternionParameterization`为例具体说明，类声明如下。
 
-#### 1.2.3 `QuaternionParameterization`
+
+
+##### 1.2.2.3 `QuaternionParameterization`
 
 原文：[LocalParameterization参数化](https://blog.csdn.net/hzwwpgmwy/article/details/86490556?spm=1001.2014.3001.5502)
 
@@ -222,7 +432,27 @@ class LocalParameterization {
  [3]《流形与几何初步》
  [4]《Quater[nio](https://so.csdn.net/so/search?q=nio)n kinematics for the error-state Kalman filter》
 
-`QuaternionParameterization`中表示四元数中四个量在内存中的存储顺序是<font color='#ff0000'>[w, x, y, z]</font>，而`Eigen`内部四元数在内存中的存储顺序是<font color='#ff0000'>[x, y, z, w]</font>，但是其构造顺序是<font color='#ff0000'>[w, x, y, z]</font>（不要被这个假象给迷惑），所以就要使用另一种参数本地化类，即`EigenQuaternionParameterization`，下面就以`QuaternionParameterization`为例子说明，如下：
+> 注意:
+>
+> - 在 ceres 源码中没有明确说明之处都认为矩阵 raw memory 存储方式是 Row Major 的，这与 Eigen 默认的 Col Major 是相反的。
+>
+> - ceres 默认的 `Quaternion raw memory` 存储方式是 w, x, y, z，而 `Eigen Quaternion` 的存储方式是 x, y, z, w，这就导致在 ceres 代码中除`ceres::QuaternionParameterization` 之外还有`ceres::EigenQuaternionParameterization`。
+>
+>   > `Eigen Quaternion`指的是eigen库中的函数`Eigen::Quaternion(w,x,y,z)`函数中，实数w在首；但是实际上它的内部存储顺序是[x y z w]，对其访问的时候最后一个元素才是w
+>   >
+>   > 对三个函数内部存储顺序总结
+>   >
+>   > `ceres::QuaternionParameterization`：内部存储顺序为<font color='#ff0000'>(w,x,y,z)</font>
+>   >
+>   > `ceres::EigenQuaternionParameterization`：内部存储顺序为<font color='#ff0000'>(x,y,z,w)</font>
+>   >
+>   > `Eigen::Quaternion(w,x,y,z)`：内部存储顺序为<font color='#ff0000'>(x,y,z,w)</font>（与构造函数没有保持一致）
+>
+> - ceres 中 Quaternion 是 Hamilton Quaternion，遵循 Hamilton 乘法法则。
+>
+> - 在 ceres 源码中没有明确说明之处都认为矩阵 raw memory 存储方式是 Row Major 的，这与 Eigen 默认的 Col Major 是相反的。
+
+下面就以`QuaternionParameterization`为例子说明，如下：
 
 四元数的微分参考《ceres_scan_matcher.md》
 
@@ -234,12 +464,17 @@ $\textcolor{#00ff00}{\boxplus(x,\Delta) = \Big[cos(|\Delta|), \frac{sin(|\Delta|
 class CERES_EXPORT QuaternionParameterization : public LocalParameterization {
  public:
   virtual ~QuaternionParameterization() {}
+  //重载的Plus函数给出了四元数的更新方法，接受参数分别为优化前的四元数【x】，用旋转矢量表示的增量【delta】，以及更新后的四元数【x_plus_delta】。
+  //函数首先将增量【delta】由旋转矢量转换为四元数，随后采用标准四元数乘法对四元数进行更新。
   virtual bool Plus(const double* x,
                     const double* delta,
                     double* x_plus_delta) const;
   virtual bool ComputeJacobian(const double* x,
                                double* jacobian) const;
+  //GlobalSize 返回值为4，即四元数本身的实际维数。由于在内部优化时，ceres采用的是旋转矢量，维数为3，因此LocalSize()的返回值为3。
+  //GlobalSize 就是表示他真正的维数是一个4维的
   virtual int GlobalSize() const { return 4; }
+  //LocalSize是告诉Ceres他表示的东西是一个三维的
   virtual int LocalSize() const { return 3; }
 };
 ```
@@ -271,6 +506,8 @@ class CERES_EXPORT QuaternionParameterization : public LocalParameterization {
    $\boxplus$ 运算符，首先将四元数的向量部分（与旋转向量相差一个系数2）变成一个完整的四元数（纯虚四元数的指数），即得到过参数化的增量，然后将该增量应用到待估计变量上.
 
    ```c++
+   //重载的Plus函数给出了四元数的更新方法，接受参数分别为优化前的四元数【x】，用旋转矢量表示的增量【delta】，以及更新后的四元数【x_plus_delta】。
+   //函数首先将增量【delta】由旋转矢量转换为四元数，随后采用标准四元数乘法对四元数进行更新。
    bool QuaternionParameterization::Plus(const double* x,
                                          const double* delta,
                                          double* x_plus_delta) const {
@@ -299,82 +536,96 @@ class CERES_EXPORT QuaternionParameterization : public LocalParameterization {
 
 4. `ComputeJacobian()`
 
-   参考[2]中的公式24，使用链式法则我们知道 $\tilde { \mathbf { J } } _ { i j } $ 由两部分构成，第一部分 $\frac { \partial \mathbf { e } _ { i j } ( \breve { \mathbf { x } } ) } { \partial \breve { \mathbf { x } } _ { i } } $ 是对原始过参数化的优化变量（比如，四元数）的导数，这个很容易求得，直接借助ceres的`AutoDiffCostFunction() `计算即可，或者自己计算雅可比矩阵，实现一个`costfunction`，关键是第二部分是如何求得的呢？
-   $$
-   \tilde{\mathbf{J}}_{i j} &= &\left.\frac{\partial \mathbf{e}_{i j}(\breve{\mathbf{x}} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{x}})}{\partial \Delta \tilde{\mathbf{x}}}\right|_{\Delta \tilde{\mathbf{x}}=0}
-   \\
-   &= &\left.\frac{\partial \mathbf{e}_{i j}(\breve{\mathbf{x}})}{\partial \breve{\mathbf{x}}_{i}} \cdot \frac{\breve{\mathbf{x}}_{i} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{x}}_{i}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{x}}_{i}}\right|_{\Delta \tilde{\mathbf{x}}=0}
-   $$
-   现在求解 $\left.\frac{\partial \check{\mathbf{x}}_{i} \boxplus \Delta \overline{\mathbf{x}}_{i}}{\partial \Delta \overline{\mathbf{x}}_{i}}\right|_{\Delta \overline{\mathbf{x}}=\mathbf{0}}$ , 以四元数为例:
-   $$
-   \frac{\partial \breve{\mathbf{q}}_{i} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}} &= &\frac{\partial \breve{\mathbf{q}}_{i} \otimes e^{\Delta \tilde{\mathbf{q}}_{i}}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}} 
-   \\
-   &\approx &\frac{\partial \breve{\mathbf{q}}_{i} \otimes
-   	\left[
-   		\begin{array}{c}
-   			1 \\
-   			\boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}
-   		\end{array}
-   	\right]}
-   	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
-   \\
-   &=  &\frac{\partial 
-   	\left[\breve{\mathbf{q}}_{i}\right]_{L}
-   	\left[
-   		\begin{array}{c}
-   			1 \\
-   			\boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}
-   		\end{array}
-   	\right]}
-   	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
-   $$
-   注意上面符号的变化，先从  $\boxplus$ 变成四元数乘法 $ \otimes $ ，最后变成普通的乘法，进一步得到，
-   $$
-   \left[
-   	\begin{array}{llll}
-   		q_{w} & -q_{x} & -q_{y} & -q_{z} \\
-   		q_{x} &  q_{w} & -q_{z} &  q_{y} \\
-   		q_{y} &  q_{z} &  q_{w} & -q_{x} \\
-   		q_{z} & -q_{y} &  q_{x} &  q_{w}
-   	\end{array}
-   \right] 
-   \frac{\partial
-   	\left[
-   		\begin{array}{c}
-   			1 \\
-   			\Delta \tilde{\mathbf{q}}_{i}
-   		\end{array}
-   	\right]}
-   	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
-   &= 		&\left[
-   			\begin{array}{llll}
-   				q_{w} & -q_{x} & -q_{y} & -q_{z} \\
-   				q_{x} &  q_{w} & -q_{z} &  q_{y} \\
-   				q_{y} &  q_{z} &  q_{w} & -q_{x} \\
-   				q_{z} & -q_{y} &  q_{x} &  q_{w}
-   			\end{array}
-   		\right]
-   		\left[
-   			\begin{array}{lll}
-   				0 & 0 & 0 \\
-   				1 & 0 & 0 \\
-   				0 & 1 & 0 \\
-   				0 & 0 & 1
-   			\end{array}
-   		\right]
-   \\
-   &=		&\left[
-   			\begin{array}{llll}
-   				-q_{x} & -q_{y} & -q_{z} \\
-   				 q_{w} & -q_{z} &  q_{y} \\
-   				 q_{z} &  q_{w} & -q_{x} \\
-   				-q_{y} &  q_{x} &  q_{w}
-   			\end{array}
-   		\right]
-   $$
-   最后得到雅可比矩阵是4*3维的，代码里使用一个size为12的数组存储.
+   `x`对`delta`的雅克比矩阵
+   
+   ComputeJacobian函数给出了四元数相对于旋转矢量的雅克比矩阵计算方法，即 
+   
+   $\mathcal{J}_{4 \times 3}=d \mathcal{q} / d \mathcal{v} = d [q_w, q_x, q_y, q_z]^T /d [x,y,z] $
+   
+   对应Jacobian维数为4行3列，存储方式为行主序。
+   
+   推导过程如下：
+   
+   >  参考[2]中的公式24，使用链式法则我们知道 $\tilde { \mathbf { J } } _ { i j } $ 由两部分构成，第一部分 $\frac { \partial \mathbf { e } _ { i j } ( \breve { \mathbf { x } } ) } { \partial \breve { \mathbf { x } } _ { i } } $ 是对原始过参数化的优化变量（比如，四元数）的导数，这个很容易求得，直接借助ceres的`AutoDiffCostFunction() `计算即可，或者自己计算雅可比矩阵，实现一个`costfunction`，关键是第二部分是如何求得的呢？
+   >
+   > > 
+   >
+   > $$
+   > \tilde{\mathbf{J}}_{i j} &= &\left.\frac{\partial \mathbf{e}_{i j}(\breve{\mathbf{x}} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{x}})}{\partial \Delta \tilde{\mathbf{x}}}\right|_{\Delta \tilde{\mathbf{x}}=0}
+   > \\
+   > &= &\left.\frac{\partial \mathbf{e}_{i j}(\breve{\mathbf{x}})}{\partial \breve{\mathbf{x}}_{i}} \cdot \frac{\breve{\mathbf{x}}_{i} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{x}}_{i}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{x}}_{i}}\right|_{\Delta \tilde{\mathbf{x}}=0}
+   > $$
+   >
+   > 现在求解 $\left.\frac{\partial \check{\mathbf{x}}_{i} \boxplus \Delta \overline{\mathbf{x}}_{i}}{\partial \Delta \overline{\mathbf{x}}_{i}}\right|_{\Delta \overline{\mathbf{x}}=\mathbf{0}}$ , 以四元数为例:
+   > $$
+   > \frac{\partial \breve{\mathbf{q}}_{i} \boxplus \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}} &= &\frac{\partial \breve{\mathbf{q}}_{i} \otimes e^{\Delta \tilde{\mathbf{q}}_{i}}}{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}} 
+   > \\
+   > &\approx &\frac{\partial \breve{\mathbf{q}}_{i} \otimes
+   > 	\left[
+   > 		\begin{array}{c}
+   > 			1 \\
+   > 			\boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}
+   > 		\end{array}
+   > 	\right]}
+   > 	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
+   > \\
+   > &=  &\frac{\partial 
+   > 	\left[\breve{\mathbf{q}}_{i}\right]_{L}
+   > 	\left[
+   > 		\begin{array}{c}
+   > 			1 \\
+   > 			\boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}
+   > 		\end{array}
+   > 	\right]}
+   > 	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
+   > $$
+   > 注意上面符号的变化，先从  $\boxplus$ 变成四元数乘法 $ \otimes $ ，最后变成普通的乘法，进一步得到，
+   > $$
+   > \left[
+   > 	\begin{array}{llll}
+   > 		q_{w} & -q_{x} & -q_{y} & -q_{z} \\
+   > 		q_{x} &  q_{w} & -q_{z} &  q_{y} \\
+   > 		q_{y} &  q_{z} &  q_{w} & -q_{x} \\
+   > 		q_{z} & -q_{y} &  q_{x} &  q_{w}
+   > 	\end{array}
+   > \right] 
+   > \frac{\partial
+   > 	\left[
+   > 		\begin{array}{c}
+   > 			1 \\
+   > 			\Delta \tilde{\mathbf{q}}_{i}
+   > 		\end{array}
+   > 	\right]}
+   > 	{\partial \boldsymbol{\Delta} \tilde{\mathbf{q}}_{i}}
+   > &= 		&\left[
+   > 			\begin{array}{llll}
+   > 				q_{w} & -q_{x} & -q_{y} & -q_{z} \\
+   > 				q_{x} &  q_{w} & -q_{z} &  q_{y} \\
+   > 				q_{y} &  q_{z} &  q_{w} & -q_{x} \\
+   > 				q_{z} & -q_{y} &  q_{x} &  q_{w}
+   > 			\end{array}
+   > 		\right]
+   > 		\left[
+   > 			\begin{array}{lll}
+   > 				0 & 0 & 0 \\
+   > 				1 & 0 & 0 \\
+   > 				0 & 1 & 0 \\
+   > 				0 & 0 & 1
+   > 			\end{array}
+   > 		\right]
+   > \\
+   > &=		&\left[
+   > 			\begin{array}{llll}
+   > 				-q_{x} & -q_{y} & -q_{z} \\
+   > 				 q_{w} & -q_{z} &  q_{y} \\
+   > 				 q_{z} &  q_{w} & -q_{x} \\
+   > 				-q_{y} &  q_{x} &  q_{w}
+   > 			\end{array}
+   > 		\right]
+   > $$
+   > 最后得到雅可比矩阵是4*3维的，代码里使用一个size为12的数组存储.
 
-ComputeJacobian函数给出了四元数相对于旋转矢量的雅克比矩阵计算方法，即 $\mathcal{J}_{4 \times 3}=d \mathcal{q} / d \mathcal{v} = d [q_w, q_x, q_y, q_z]^T /d [x,y,z] $，对应Jacobian维数为4行3列，存储方式为行主序。
+
 
 上述证明是左乘，下面的代码是右乘，参考下面文献 [1] 的公式 (18)
 
@@ -393,7 +644,9 @@ bool QuaternionParameterization::ComputeJacobian(const double* x,
 }
 ```
 
-#### 1.2.4 ceres预定义LocalParameterization
+
+
+##### 1.2.2.4 ceres预定义LocalParameterization
 
 <font color = '#ff0000'>`QuaternionParameterization`四元数的流型</font>:
 
@@ -421,11 +674,13 @@ $\textcolor{#00ff00}{\boxplus(x,\Delta) = \Big[cos(|\Delta|), \frac{sin(|\Delta|
 
 - `ProductParameterization`：7维位姿变量一同优化，而前4维用四元数表示的情况（这里源文档只举了一个例子，具体用法有待深化）；
 
-#### 1.2.5 `AutoDiffLocalParameterization`
+
+
+##### 1.2.2.5 `AutoDiffLocalParameterization`
 
 [`AutoDiffLocalParameterization`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres29AutoDiffLocalParameterizationE) does for [`LocalParameterization`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres21LocalParameterizationE) what [`AutoDiffCostFunction`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres20AutoDiffCostFunctionE) does for [`CostFunction`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres12CostFunctionE). It allows the user to define a templated functor that implements the [`LocalParameterization::Plus()`](http://www.ceres-solver.org/nnls_modeling.html#_CPPv4NK5ceres21LocalParameterization4PlusEPKdPKdPd) operation and it uses automatic differentiation to implement the computation of the Jacobian.
 
-To get an auto differentiated local parameterization, you must define a class with a templated operator() (a functor) that computes
+To get an auto differentiated local parameterization, you must define a class with a templated operator() (a functor)s that computes
 
 $\textcolor{#00ff00}{x' = \boxplus(x, \Delta x)}$
 
@@ -701,7 +956,7 @@ $$
 1) 使用SetParameterBlockConstant()，
 2)  手动将不优化的变量对应的那一列雅可比置零，
 3)  手动使用常数代替某个不优化变量，达到不优化该变量（见旷世标定工具箱）
-   
+
 
 ##### 1.5.1.2 Numerical rank deficiency
 
@@ -848,6 +1103,295 @@ Even though the residual blocks in the problem may contain loss functions, setti
 ##### 1.5.6.3  bool GetCovarianceBlockInTangentSpace(const double  *parameter_block1, const double *parameter_block2, double  *covariance_block) const
 
 Returns cross-covariance in the tangent space if a local parameterization is associated with either parameter block; else returns cross-covariance in the ambient space.
+
+### 1.6 ceres实战案例
+
+#### 1.6.1 CmakeLists.txt配置
+
+```cmake
+cmake_minimum_required(VERSION 2.8)
+project(ceres)
+
+find_package(Ceres REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
+
+add_executable(test test.cpp)
+target_link_libraries(test ${CERES_LIBRARIES})
+```
+
+
+
+#### 1.6.2 示例：ceres入门例子
+
+一个简单的求解 $ \underset{x}{\min} \frac{1}{2}(10-x)^{2} $ 的优化问题代码如下：
+
+```c++
+#include<iostream>
+#include<ceres/ceres.h>
+
+using namespace std;
+using namespace ceres;
+
+//第一部分：构建代价函数，重载（）符号，仿函数的小技巧
+struct CostFunctor {
+   template <typename T>
+   bool operator()(const T* const x, T* residual) const {
+     residual[0] = T(10.0) - x[0];
+     return true;
+   }
+};
+
+//主函数
+int main(int argc, char** argv) {
+  google::InitGoogleLogging(argv[0]);
+
+  // 寻优参数x的初始值，为5
+  double initial_x = 5.0;
+  double x = initial_x;
+
+  // 第二部分：构建寻优问题
+  Problem problem;
+  //使用自动求导，将之前的代价函数结构体传入，第一个1是输出维度，即残差的维度，第二个1是输入维度，即待寻优参数x的维度。
+  CostFunction* cost_function =
+      new AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor); 
+  //向问题中添加误差项，本问题比较简单，添加一个就行。
+  problem.AddResidualBlock(cost_function, NULL, &x); 
+
+  //第三部分： 配置并运行求解器
+  Solver::Options options;
+  options.linear_solver_type = ceres::DENSE_QR; //配置增量方程的解法
+  options.minimizer_progress_to_stdout = true;//输出到cout
+  Solver::Summary summary;//优化信息
+  Solve(options, &problem, &summary);//求解!!!
+
+  std::cout << summary.BriefReport() << "\n";//输出优化的简要信息
+  //最终结果
+  std::cout << "x : " << initial_x << " -> " << x << "\n";
+  return 0;
+}
+```
+
+
+
+#### 1.6.3 应用：曲线拟合（使用的是自动求导，不用写雅克比）
+
+> 以下内容来源与参考：
+>
+> [一文助你Ceres 入门——Ceres Solver新手向全攻略](https://blog.csdn.net/cqrtxwd/article/details/78956227)
+
+《视觉SLAM十四讲》P138
+
+> 问题：拟合非线性函数的曲线
+>
+> $ y=e^{3 x^{2}+2 x+1} $
+>
+> ---
+>
+> 整个代码的思路还是先构建代价函数结构体，然后在[0,1]之间均匀生成待拟合曲线的1000个数据点，加上方差为1的白噪声，数据点用两个vector储存（x_data和y_data），然后构建待求解优化问题，最后求解，拟合曲线参数。
+> （PS. 本段代码中使用OpenCV的随机数产生器，要跑代码的同学可能要先装一下OpenCV）
+
+```c++
+#include<iostream>
+#include<opencv2/core/core.hpp>
+#include<ceres/ceres.h>
+using namespace std;
+using namespace cv;
+
+//构建代价函数结构体，abc为待优化参数，residual为残差。
+struct CURVE_FITTING_COST
+{
+  CURVE_FITTING_COST(double x,double y):_x(x),_y(y){}
+  template <typename T>
+  bool operator()(const T* const abc,T* residual)const
+  {
+    residual[0]=_y-ceres::exp(abc[0]*_x*_x+abc[1]*_x+abc[2]);
+    return true;
+  }
+  const double _x,_y;
+};
+
+//主函数
+int main()
+{
+  //参数初始化设置，abc初始化为0，白噪声方差为1（使用OpenCV的随机数产生器）。
+  double a=3,b=2,c=1;
+  double w=1;
+  RNG rng;
+  double abc[3]={0,0,0};
+
+//生成待拟合曲线的数据散点，储存在Vector里，x_data，y_data。
+  vector<double> x_data,y_data;
+  for(int i=0;i<1000;i++)
+  {
+    double x=i/1000.0;
+    x_data.push_back(x);
+    y_data.push_back(exp(a*x*x+b*x+c)+rng.gaussian(w));
+  }
+
+//反复使用AddResidualBlock方法（逐个散点，反复1000次）
+//将每个点的残差累计求和构建最小二乘优化式
+//不使用核函数，待优化参数是abc
+  ceres::Problem problem;
+  for(int i=0;i<1000;i++)
+  {
+    problem.AddResidualBlock(
+      new ceres::AutoDiffCostFunction<CURVE_FITTING_COST,1,3>(
+        new CURVE_FITTING_COST(x_data[i],y_data[i])
+      ),
+      nullptr,
+      abc
+    );
+  }
+
+//配置求解器并求解，输出结果
+  ceres::Solver::Options options;
+  options.linear_solver_type=ceres::DENSE_QR;
+  options.minimizer_progress_to_stdout=true;
+  ceres::Solver::Summary summary;
+  ceres::Solve(options,&problem,&summary);
+  cout<<"a= "<<abc[0]<<endl;
+  cout<<"b= "<<abc[1]<<endl;
+  cout<<"c= "<<abc[2]<<endl;
+return 0;
+}
+}
+```
+
+
+
+
+
+#### 1.6.4 应用: 基于李代数的视觉SLAM位姿优化（解析求导）
+
+> 以下内容来源与参考：
+>
+> [Ceres-Solver 从入门到上手视觉SLAM位姿优化问题](https://blog.csdn.net/u011178262/article/details/88774577)
+
+下面以 **基于李代数的视觉SLAM位姿优化问题** 为例，介绍 Ceres Solver 的使用。
+
+《视觉SLAM十四讲》P186
+
+（1）残差（预测值 - 观测值）
+$$
+r(\xi)=K \exp \left(\xi^{\wedge}\right) P-u
+$$
+
+
+（2）雅克比矩阵
+$$
+\begin{array}{c}
+J &= &\frac{\partial r(\xi)}{\partial \xi} \\
+  &= &\left[\begin{array}{ccccc}
+\frac{f_{x}}{Z^{\prime}} & 0 & -\frac{X^{\prime} f_{x}}{Z^{\prime 2}} & -\frac{X^{\prime} Y^{\prime} f_{z}}{Z^{2}} & f_{x}+\frac{X^{\prime 2} f_{x}}{Z^{2}} & -\frac{Y^{\prime} f_{x}}{Z^{\prime}} \\
+0 & \frac{f_{y}}{Z^{\prime}} & -\frac{Y^{\prime} f_{y}}{Z^{2}} & -f_{y}-\frac{Y^{\prime 2} f_{y}}{Z^{\prime 2}} & \frac{X^{\prime} Y^{\prime} f_{y}}{Z^{\prime 2}} & \frac{X^{\prime} f_{y}}{Z^{\prime}}
+\end{array}\right] \in \mathbb{R}^{2 \times 6}
+\end{array}
+$$
+
+
+（3）核心代码
+
+代价函数的构造：
+
+```c++
+//应该是重投影误差，这样的话才会有残差2维的，优化变量是6维度的
+class BAGNCostFunctor : public ceres::SizedCostFunction<2, 6> {
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW //对齐
+	//? 二维，三维？ 第一个是像素观测值   第二个是准备用来重投影的三维观测值
+    BAGNCostFunctor(Eigen::Vector2d observed_p, Eigen::Vector3d observed_P) :
+            observed_p_(observed_p), observed_P_(observed_P) {}
+
+    virtual ~BAGNCostFunctor() {}
+
+    virtual bool Evaluate( //参数 残差  雅克比
+      double const* const* parameters, double *residuals, double **jacobians) const {
+
+        Eigen::Map<const Eigen::Matrix<double,6,1>> T_se3(*parameters);
+
+        Sophus::SE3 T_SE3 = Sophus::SE3::exp(T_se3);
+
+        Eigen::Vector3d Pc = T_SE3 * observed_P_;
+
+        Eigen::Matrix3d K;
+        double fx = 520.9, fy = 521.0, cx = 325.1, cy = 249.7;
+        K << fx, 0, cx, 0, fy, cy, 0, 0, 1;
+        
+        //! 计算残差
+        Eigen::Vector2d residual =  observed_p_ - (K * Pc).hnormalized();
+
+        residuals[0] = residual[0];
+        residuals[1] = residual[1];
+
+        if(jacobians != NULL) {
+
+            if(jacobians[0] != NULL) {
+                // 2*6的雅克比矩阵
+                Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>> J(jacobians[0]);
+
+                double x = Pc[0];
+                double y = Pc[1];
+                double z = Pc[2];
+
+                double x2 = x*x;
+                double y2 = y*y;
+                double z2 = z*z;
+
+                J(0,0) =  fx/z;
+                J(0,1) =  0;
+                J(0,2) = -fx*x/z2;
+                J(0,3) = -fx*x*y/z2;
+                J(0,4) =  fx+fx*x2/z2;
+                J(0,5) = -fx*y/z;
+                J(1,0) =  0;
+                J(1,1) =  fy/z;
+                J(1,2) = -fy*y/z2;
+                J(1,3) = -fy-fy*y2/z2;
+                J(1,4) =  fy*x*y/z2;
+                J(1,5) =  fy*x/z;
+            }
+        }
+
+        return true;
+    }
+
+private:
+    const Eigen::Vector2d observed_p_;
+    const Eigen::Vector3d observed_P_;
+};
+```
+
+构造优化问题，并求解相机位姿：
+
+```c++
+Sophus::Vector6d se3;
+
+//在当前problem中添加代价函数残差块，损失函数为NULL采用默认的最小二乘误差即L2范数，优化变量为 se3
+ceres::Problem problem;
+for(int i=0; i<n_points; ++i) {
+    ceres::CostFunction *cost_function;
+    cost_function = new BAGNCostFunctor(p2d[i], p3d[i]);
+    problem.AddResidualBlock(cost_function, NULL, se3.data());
+}
+
+ceres::Solver::Options options;
+options.dynamic_sparsity = true;
+options.max_num_iterations = 100; //迭代100次
+options.sparse_linear_algebra_library_type = ceres::SUITE_SPARSE;
+options.minimizer_type = ceres::TRUST_REGION;
+options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+options.trust_region_strategy_type = ceres::DOGLEG;
+options.minimizer_progress_to_stdout = true;
+options.dogleg_type = ceres::SUBSPACE_DOGLEG;
+
+ceres::Solver::Summary summary;
+ceres::Solve(options, &problem, &summary);
+std::cout << summary.BriefReport() << "\n";
+
+std::cout << "estimated pose: \n" << Sophus::SE3::exp(se3).matrix() << std::endl;
+```
+
+
 
 
 ## 2. 类CeresScanMatcher2D
@@ -1020,6 +1564,8 @@ for (size_t i = 0; i < point_cloud_.size(); ++i) {
 }
 ```
 
-## 4. 完
+## 4. 总结
 
 本文中我们简单介绍了使用Ceres库求解问题的基本套路。然后分析了扫描匹配器CeresScanMatcher2D，发现它除了要求hit点在占用栅格上出现的概率最大化之外，    还通过两个残差项约束了优化后的位姿估计在原始估计的附近。
+
+# 

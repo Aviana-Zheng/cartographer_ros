@@ -42,6 +42,8 @@ class AccelerationCostFunction {
   bool operator()(const T* const middle_rotation, const T* const start_position,
                   const T* const middle_position, const T* const end_position,
                   const T* const gravity_constant, T* residual) const {
+    // 去掉重力加速度的影响
+    // 将IMU坐标系下的delta_v转为全局坐标系下的delta_v
     const Eigen::Matrix<T, 3, 1> imu_delta_velocity =
         ToEigen(middle_rotation) * delta_velocity_imu_frame_.cast<T>() -
         *gravity_constant *
@@ -56,6 +58,7 @@ class AccelerationCostFunction {
         (Eigen::Map<const Eigen::Matrix<T, 3, 1>>(end_position) -
          Eigen::Map<const Eigen::Matrix<T, 3, 1>>(middle_position)) /
         T(second_delta_time_seconds_);
+    // 求出三个位置得到的两个速度的差
     const Eigen::Matrix<T, 3, 1> delta_velocity = end_velocity - start_velocity;
 
     (Eigen::Map<Eigen::Matrix<T, 3, 1>>(residual) =
