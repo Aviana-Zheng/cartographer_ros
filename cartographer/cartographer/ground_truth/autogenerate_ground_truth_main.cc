@@ -25,6 +25,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+// 设置文件名称
 DEFINE_string(
     pose_graph_filename, "",
     "File with the pose graph proto from which to generate ground truth data.");

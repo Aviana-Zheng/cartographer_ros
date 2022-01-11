@@ -27,7 +27,7 @@ namespace ground_truth {
 
 // Reads a text file and converts it to a GroundTruth proto. Each line contains:
 // time1 time2 x y z roll pitch yaw
-// using Unix epoch timestamps.
+// using Unix epoch(时代纪元) timestamps.
 //
 // This is the format used in the relations files provided for:
 // R. Kuemmerle, B. Steder, C. Dornhege, M. Ruhnke, G. Grisetti, C. Stachniss,

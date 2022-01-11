@@ -66,6 +66,7 @@ Error ComputeError(const transform::Rigid3d& pose1,
                common::Pow2(transform::GetAngle(error))};
 }
 
+// 均方差
 string MeanAndStdDevString(const std::vector<double>& values) {
   CHECK_GE(values.size(), 2);
   const double mean =
@@ -134,6 +135,7 @@ void Run(const string& pose_graph_filename, const string& relations_filename,
   }
 
   std::vector<Error> errors;
+  // 查值并计算误差
   for (const auto& relation : ground_truth.relation()) {
     const auto pose1 = transform_interpolation_buffer->Lookup(
         common::FromUniversal(relation.timestamp1()));

@@ -28,8 +28,10 @@ namespace ground_truth {
 
 namespace {
 
+// 计算机中的UNIX时间戳，是以GMT/UTC时间「1970-01-01T00:00:00」为起点，到具体时间的秒数，不考虑闰秒。
 common::Time UnixToCommonTime(double unix_time) {
-  constexpr int64 kUtsTicksPerSecond = 10000000;
+  // UTS单位：千万分之一秒,0.1us，UNIX时间单位 = 10^7 UTC单位
+  constexpr int64 kUtsTicksPerSecond = 10000000;  
   return common::FromUniversal(common::kUtsEpochOffsetFromUnixEpochInSeconds *
                                kUtsTicksPerSecond) +
          common::FromSeconds(unix_time);
