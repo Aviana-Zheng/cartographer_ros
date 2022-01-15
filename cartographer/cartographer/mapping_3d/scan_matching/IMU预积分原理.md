@@ -1793,7 +1793,6 @@ H_{i} &=\frac{\partial\left(h_{i, j}-f_{i, j}\right)}{\partial \delta X_{i}} \\
 \end{aligned}
 $$
 
-
 相关具体推导，见附录（三）。
 获得残差雅克比矩阵的表达式之后, 代入第 $m$ 次迭代优化获得的状态值, 就可以获得第 $\mathrm{m}+1$ 次迭代使用的残差雅克比:
 $$
@@ -1837,13 +1836,1574 @@ IMU预积分技术是一项融合了多项复杂内容的综合性技术，熟�
 
 
 
-## 附录一
+## 附录一 误差传递雅克比推导
 
-## 附录二
+针对传统的线性空间状态量, 存在两种方法 [6]来推导误差传递雅克比, 这里分别称为基于系统状态递推方程的推导方法和基于误差微分方程的推导方法。状态递推方程的推导方法较为直观, 易于理解。微分方程是惯导解算中常用的一种建模方式, 基于误差微分方程的推导方法已经在文献 $[11]$ 中得到较为详细介绍。
+因旋转状态表示的特殊性, 旋转状态相关的误差传递雅克比表达式与其他雅克比相比也具有明显的特殊性, 需要单独进行分析和推导。
 
-## 附录三
+### 1. 基于系统状态递推方程推导
+
+#### 1.1 常规形式推导
+
+非线性系统的状态递推表达式如下:
+$$
+X_{t+1}=f\left(X_{t}, U_{t}\right)
+$$
+假设系统状态由均值和误差组成, 即
+$$
+\left\{\begin{array}{l}
+X_{t+1}=\hat{X}_{t+1}+\delta X_{t+1} \\
+X_{t}=\hat{X}_{t}+\delta X_{t} \\
+U_{t}=\hat{U}_{t}+\delta U_{t}
+\end{array}\right.
+$$
+其中 $\delta X_{t+1} 、 \delta X_{t} 、 \delta U_{t}$ 建模为零均值高斯白噪声。 代入表达式可得:
+$$
+\hat{X}_{t+1}+\delta X_{t+1}=f\left(\hat{X}_{t}+\delta X_{t}, \hat{U}_{t}+\delta U_{t}\right)
+$$
+对上式在 $X_{t}=\hat{X}_{t}$ 和 $U_{t}=\hat{U}_{t}$ 处进行一阶泰勒展开, 可得:
+$$
+X_{t+1}=\hat{X}_{t+1}+\delta X_{t+1}=f\left(\hat{X}_{t}, \hat{U}_{t}\right)+F_{t} \cdot\left(X_{t}-\hat{X}_{t}\right)+G_{t} \cdot\left(U_{t}-\hat{U}_{t}\right)
+$$
+其中$\left.F_{t} \triangleq \frac{\partial f\left(X_{t}, U_{t}\right)}{\partial X_{t}}\right|_{X_{t}=\hat{X}_{t}},\left.G_{t} \stackrel{\Delta}{=} \frac{\partial f\left(X_{t}, U_{t}\right)}{\partial U_{t+1}}\right|_{U t=\hat{U}_{t}}$
+
+整理方程, 并由 $\hat{X}_{t+1}=f\left(\hat{X}_{t}, \hat{U}_{t}\right)$, 从上式消去相关部分可得状态误差递推模型:
+$$
+\delta X_{t+1}=F_{t} \cdot \delta X_{t}+G_{t} \cdot \delta U_{t}
+$$
+可见状态误差模型中的雅克比 $F_{t} 、 G_{t}$ 与经典的状态递推模型中对应雅克比形式完全相同。
 
 
+
+#### 1.2 等价形式
+
+除此之外雅克比 $F_{t-1} 、 G_{t}$ 有多种表达形式, 以 $F_{t}$ 为例, 以下证明
+$$
+F_{t}=\left.\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial X_{t}}\right|_{X_{t}=\hat{X}_{t}}=\left.\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial \delta X_{t}}\right|_{X_{t}=\hat{X}_{t}}=\left.\frac{\partial \delta f\left(X_{t}, U_{t}\right)}{\partial \delta X_{t}}\right|_{X_{t-1}=\hat{X}_{t}}
+$$
+首先证明前半部分:
+$$
+\begin{aligned}
+\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial \delta X_{t}} &=\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial X_{t}} \frac{\partial X_{t}}{\partial \delta X_{t}} \\
+&=\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial X_{t}} \frac{\partial\left(\widehat{X}_{t}+\delta X_{t}\right)}{\partial \delta X_{t}} \\
+&=\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial X_{t}}
+\end{aligned}
+$$
+证明后半部分, 由
+$$
+\delta f\left(X_{t}, U_{t}\right)=f\left(X_{t}, U_{t}\right)-f\left(\hat{X}_{t}, \widehat{U}_{t}\right)=f\left(X_{t}, U_{t}\right)-\widehat{X}_{t+1}
+$$
+可得:
+$$
+\begin{aligned}
+\frac{\partial \delta f\left(X_{t}, U_{t}\right)}{\partial \delta X_{t}} &=\frac{\partial\left(f\left(X_{t}, U_{t}\right)-\widehat{X}_{t+1}\right)}{\partial \delta X_{t}} \\
+&=\frac{\partial\left(f\left(X_{t}, U_{t}\right)-\widehat{X}_{t+1}\right)}{\partial X_{t}} \frac{\partial X_{t}}{\partial \delta X_{t}} \\
+&=\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial X_{t}} \frac{\partial X_{t}}{\partial \delta X_{t}} \\
+&=\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial X_{t}}
+\end{aligned}
+$$
+同理可获得
+$$
+G_{t}=\left.\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial U_{t}}\right|_{U t=\hat{U} t}=\left.\frac{\partial f\left(X_{t}, U_{t}\right)}{\partial \delta U_{t}}\right|_{U t=\hat{U} t}=\left.\frac{\partial \delta f\left(X_{t}, U_{t}\right)}{\partial \delta U_{t}}\right|_{U t=\hat{U} t}
+$$
+因此误差传递雅克比 $F_{t-1} 、 G_{t}$ 的导数具有多种状态表达形式, 而且结果完全等价。 从以上这一结论可以得出: 在优化算法中对状态求导与对误差状态求导等价, 因此雅克比的推导不必太在意形式, 可以根据需要选择任何易于得出结果的形式, 状态或误差状态都可。
+
+### 2. 基于误差微分方程推导
+
+#### 2.1 常规形式推导
+
+误差微分方程一般由状态微分方程得到, 设状态微分方程模型为:
+$$
+\dot{X}_{t}=g\left(X_{t}, U_{t}\right)
+$$
+代入误差表达式可得
+$$
+\dot{\left(\hat{X}_{t} + \delta X_{t}\right)}=g\left(\hat{X}_{t}+\delta X_{t}, \hat{U}_{t}+\delta U_{t}\right)
+$$
+将上式在 $X_{t}=\hat{X}_{t}$ 和 $U_{t+1}=\hat{U}_{t+1}$ 处进行一阶泰勒展开, 可得:
+$$
+\dot{\left(\hat{X}_{t}+\delta X_{t}\right)}=g\left(\hat{X}_{t}, \hat{U}_{t}\right)+A_{t} \delta X_{t}+B_{t} \delta U_{t}
+\\
+\left.\dot{X}_{t}\right|_{X_{t}=\dot{X}_{t}}+\delta \dot{X}_{t}=g\left(\hat{X}_{t}, \hat{U}_{t}\right)+A_{t} \delta X_{t}+B_{t} \delta U_{t} 
+$$
+
+$$
+\delta \dot{X}_{t}=A_{t} \delta X_{t}+B_{t} \delta U_{t}
+$$
+其中 ,  $\left.A_{t} \triangleq \frac{\partial g\left(X_{t}, U_{t}\right)}{\partial X_{t}}\right|_{X_{t}=\dot{X}_{t}},\left.B_{t} \triangleq \frac{\partial g\left(X_{t}, U_{t}\right)}{\partial U_{t}}\right|_{U t=\dot{U} t}$
+
+接下来对上式进行离散化:
+$$
+\begin{aligned}
+\delta X_{t+1} &=\int_{0}^{t+1} \delta \dot{X}_{\tau} \cdot d \tau=\int_{0}^{t} \delta \dot{X}_{\tau} \cdot d \tau+\int_{t}^{t+1} \delta \dot{X}_{\tau} \cdot d \tau \\
+&=\delta X_{t}+\int_{t}^{t+1} \delta \dot{X}_{\tau} \cdot d \tau \\
+&=\delta X_{t}+\int_{t}^{t+1}\left(A_{\tau} \cdot \delta X_{\tau}+B_{\tau} \cdot \delta U_{\tau}\right) \cdot d \tau \\
+& \approx \delta X_{t}+A_{t} \cdot \delta X_{t} \cdot \Delta t+B_{t} \cdot \delta U_{t} \cdot \Delta t
+\end{aligned}
+$$
+整理可得状态误差递推模型:
+$$
+\delta X_{t+1}=\left(I+A_{t} \cdot \Delta t\right) \cdot \delta X_{t}+B_{t} \cdot \delta U_{t} \cdot \Delta t
+$$
+结合上节内容, 可得两种表达方式得到的误差传递雅克比存在下列对应关系:
+$$
+\begin{array}{c}
+F_{t}=I+A_{t} \cdot \Delta t \\
+G_{t}=B_{t} \cdot \Delta t
+\end{array}
+$$
+
+#### 2.2 等价形式
+
+基于与1.2同样的原理, 可得
+$$
+A_{t}=\frac{\partial g\left(X_{t}, U_{t}\right)}{\partial X_{t}}=\frac{\partial g\left(X_{t}, U_{t}\right)}{\partial \delta X_{t}}=\frac{\partial \delta g\left(X_{t}, U_{t}\right)}{\partial \delta X_{t}}
+$$
+
+$$
+B_{t}=\frac{\partial g\left(X_{t}, U_{t}\right)}{\partial U_{t}}=\frac{\partial g\left(X_{t}, U_{t}\right)}{\partial \delta U_{t}}=\frac{\partial \delta g\left(X_{t}, U_{t}\right)}{\partial \delta U_{t}}
+$$
+
+### 3. 旋转四元数状态误差传递雅克比推导
+
+以旋转四元数表示系统状态时, 误差传递雅克比不符合常规的形式, 需要根据四元数流形上的微分定义单独进行推导。
+设 $\mathrm{t}$ 和 $\mathrm{t}+1$ 时刻对应的系统姿态状态分别记为 $q_{t+1}^{w, b(t+1)}$ 和 $q_{t}^{w, b t}$, 将姿态均值记为 $\hat{q}_{t+1}^{w, b(t+1)}$ 和 $\hat{q}_{t}^{u, b t}$, 姿态存在的误差分别记为 $\delta \theta_{w, b(t+1)}$ 和 $\delta \theta_{w, b t}$, 并定义为右扰动, 则满足:
+$$
+\begin{cases}
+{ q _ { t + 1 } ^ { w, b ( t + 1 ) } = \hat { q } _ { t + 1 } ^ { w , b ( t + 1 ) } \oplus \delta \theta _ { w , b ( t + 1 ) } } \\
+{ q _ { t } ^ { w , b t } = \hat { q } _ { t } ^ { w , b t } \oplus \delta \theta _ { w , b t } }
+\end{cases} 
+\\
+\\
+ \Longrightarrow
+\begin{cases}
+q_{t+1}^{w, b(t+1)}=\hat{q}_{t+1}^{w, b(t+1)} \otimes\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right] \\
+q_{t}^{w, b t}=\hat{q}_{t}^{w, b t} \otimes\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b t} / 2
+\end{array}\right]
+\end{cases}
+$$
+
+
+旋转状态具有与独立性, 即旋转状态与位置、速度等系统状态分量无关, 只与旋转相关的状态和输入有关。在 ESKF 的表示的系统状态中, 与旋转无关量对应的雅克比为零, 需要推导的雅克比仅涉及与旋转有关联的状态量和输入, 具体为旋转状态误差 $\delta \theta_{w, b(t+1)}$, 角速度偏置误差 $\delta B_{i}^{g}$, 与旋转关联的输入噪声有角速度噪声 $\eta^{g}$, 角速度偏置速度噪声 $\eta^{B g}$ 。
+因此, 推导 ESKF 中状态误差递推模型, 实际是求表达式:
+$$
+\delta \theta_{w, b(t+1)}=F_{t}^{\theta} \cdot \delta \theta_{w, b t}+F_{t}^{B g}+G_{t}^{g} \cdot \eta^{g}+G_{t}^{B g} \cdot \eta^{B g}
+$$
+中的 $F_{t}^{\theta} \triangleq \frac{\partial \delta \theta_{w, b(t+1)}}{\partial \delta \theta_{w, b t}} 、 F_{t}^{B g} \triangleq \frac{\partial \delta \theta_{w, b(t+1)}}{\partial \delta B_{t}^{g}} 、 G_{t}^{g} \triangleq \frac{\partial \delta \theta_{w, b(t+1)}}{\partial \eta^{g}} 、 G_{t}^{B g} \triangleq \frac{\partial \delta \theta_{w, b(t+1)}}{\partial \delta \eta^{B g}} $
+
+#### 3.1 $F_t^{\theta}$ 推导
+
+当状态有了 $\gamma_{t, t+1}$ 的更新时, 由姿态状态更新关系, 可知以四元数表示的系统姿态状态更新表达式满足以下形式:
+$$
+q_{t+1}^{w, b(t+1)}=q_{t}^{w, b t} \otimes \gamma_{t, t+1}
+$$
+将含有姿态误差的表达式代入上式, 可得:
+$$
+\widehat{q}_{t+1}^{w, b(t+1)} \otimes\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=\widehat{q}_{t}^{w, b t} \otimes\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b t} / 2
+\end{array}\right] \otimes \gamma_{t, t+1}
+$$
+对上式进行变换, 左乘 $\hat{q}_{t+1}^{b(t+1), w}$, 可得
+$$
+\begin{array}{l}
+{\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=\widehat{q}_{t+1}^{b(t+1), w} \otimes \widehat{q}_{t}^{w, b t} \otimes\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b t} / 2
+\end{array}\right] \otimes \gamma_{t, t+1}} \\
+{\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=\left(\gamma_{t, t+1}\right)^{*} \otimes\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b t} / 2
+\end{array}\right] \otimes \gamma_{t, t+1}}
+\end{array}
+$$
+参考附录 2 中三元组四元数乘积性质, 上式右半部分可化简为:
+$$
+\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=\left[\begin{array}{c}
+1 \\
+R^{-1}\left\{\gamma_{t, t+1}\right\} \cdot \delta \theta_{w, b t} / 2
+\end{array}\right]
+$$
+可得到旋转状态误差的递推表达式:
+$$
+\delta \theta_{w, b(t+1)}=R^{-1}\left\{\gamma_{t, t+1}\right\} \cdot \delta \theta_{w, b t}
+$$
+对上式求导, 可得
+$$
+\frac{\partial \delta \theta_{w, b(t+1)}}{\partial \delta \theta_{w, b t}}=R^{-1}\left\{\gamma_{t, t+1}\right\}=F_{t}^{\theta}
+$$
+
+#### 3.2 $F_t^{Bg}$ 推导
+
+使用扰动求导的技巧获取 $\delta \theta_{w, b(t+1)}$ 与 $\delta B_{t}^{g}$ 的关系。对系统姿态状态更新表达式添加扰动 $\delta \theta_{w, b(t+1)}$ 和 $\delta B_{t}^{g}$, 可得:
+$$
+\gamma_{t, t+1}=\left[\begin{array}{c}
+1 \\
+\hat{\bar{\omega}}_{t}^{b t} \cdot \Delta t / 2
+\end{array}\right] \otimes\left[\begin{array}{c}
+1 \\
+-\delta B_{t}^{g} \cdot \Delta t / 2
+\end{array}\right]=\widehat{\gamma}_{t, t+1} \otimes\left[\begin{array}{c}
+1 \\
+-\delta B_{t}^{g} \cdot \Delta t / 2
+\end{array}\right]
+$$
+$$
+\begin{aligned}
+\widehat{q}_{t+1}^{w, b(t+1)} \otimes &\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=q_{t}^{w, b t} \otimes \gamma_{t, t+1} \\
+\widehat{q}_{t+1}^{w, b(t+1)} \otimes &\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=q_{t}^{w, b t} \otimes \hat{\gamma}_{t, t+1} \otimes\left[\begin{array}{c}
+1 \\
+-\delta B_{t}^{g} \cdot \Delta t / 2
+\end{array}\right] \\
+&\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=\hat{\gamma}_{t, t+1}^{*} \otimes \hat{\gamma}_{t, t+1} \otimes\left[\begin{array}{c}
+1 \\
+-\delta B_{t}^{g} \cdot \Delta t / 2
+\end{array}\right]
+\end{aligned}
+$$
+可得误差表达式:
+$$
+\delta \theta_{w, b(t+1)}=-\delta B_{t}^{g} \cdot \Delta t
+$$
+因此
+$$
+\frac{\partial \delta \theta_{w, b(t+1)}}{\partial \delta B_{t}^{g}}=-\Delta t \cdot \mathrm{I}=F_{t}^{B g}
+$$
+
+#### 3.3 $G_t^{g}$ 推导
+
+同理, 使用扰动求导技巧获取 $\delta \theta_{w, b(t+1)}$ 与 $\eta^{g}$ 的关系。
+$$
+\gamma_{t, t+1}=\left[\begin{array}{c}
+1 \\
+\hat{\bar{\omega}}_{t}^{b t} \cdot \Delta t / 2
+\end{array}\right] \otimes\left[\begin{array}{c}
+1 \\
+\eta^{g} \cdot \Delta t / 2
+\end{array}\right]=\hat{\gamma}_{t, t+1} \otimes\left[\begin{array}{c}
+1 \\
+\eta^{g} \cdot \Delta t / 2
+\end{array}\right]
+$$
+
+$$
+\begin{array}{c}
+\hat{q}_{t+1}^{w, b(t+1)} \otimes\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=q_{t}^{w, b t} \otimes \hat{\gamma}_{t, t+1} \otimes\left[\begin{array}{c}
+1 \\
+\eta^{g} \cdot \Delta t / 2
+\end{array}\right] \\
+{\left[\begin{array}{c}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{array}\right]=\hat{\gamma}_{t, t+1}^{*} \otimes \hat{\gamma}_{t, t+1} \otimes\left[\begin{array}{c}
+1 \\
+\eta^{g} \cdot \Delta t / 2
+\end{array}\right]}
+\end{array}
+$$
+可得误差表达式:
+$$
+\delta \theta_{w, b(t+1)}=\eta^{g} \cdot \Delta t
+$$
+因此
+$$
+\frac{\partial \delta \theta_{w, b(t+1)}}{\partial \eta^{g}}=\Delta t \cdot \mathrm{I}=G_{t}^{g}
+$$
+
+#### 3.4 $G_t^{Bg}$ 推导
+
+使用扰动求导技巧获取 $\delta \theta_{w, b(t+1)}$ 与 $\eta^{B g}$ 的关系, 如果认为 $\hat{\gamma}_{t, t+1}$ 使用 $\hat{B}_{t}^{g}$, 则
+$$
+\gamma_{t, t+1}=\left[\begin{array}{c}
+1 \\
+\hat{\bar{\omega}}_{t}^{b t} \cdot \Delta t / 2
+\end{array}\right] \otimes\left[\begin{array}{c}
+1 \\
+\eta^{B g} \cdot \Delta t \cdot \Delta t / 2
+\end{array}\right]=\hat{\gamma}_{t, t+1} \otimes\left[\begin{array}{c}
+1 \\
+\eta^{B g} \cdot \Delta t^{2} / 2
+\end{array}\right]
+$$
+
+$$
+\hat{q}_{t+1}^{w, b(t+1)} \otimes \begin{bmatrix}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{bmatrix}
+&= & q_{t}^{w, b t} \otimes \hat{\gamma}_{t, t+1} \otimes \begin{bmatrix}
+1 \\
+\eta^{B g} \cdot \Delta t^{2} / 2
+\end{bmatrix}
+\\
+\begin{bmatrix}
+1 \\
+\delta \theta_{w, b(t+1)} / 2
+\end{bmatrix}
+&= & \hat{\gamma}_{t, t+1}^{*} \otimes \hat{\gamma}_{t, t+1} \otimes \begin{bmatrix}
+1 \\
+\eta^{B g} \cdot \Delta t^{2} / 2
+\end{bmatrix}
+$$
+可得误差表达式:
+$$
+\delta \theta_{w, b(t+1)}=\eta^{B g} \cdot \Delta t^{2}
+$$
+因此
+$$
+\frac{\partial \delta \theta_{w, b(t+1)}}{\partial \eta^{B g}}=\Delta t^{2} \cdot \mathrm{I}=G_{t}^{B g}
+$$
+
+#### 3.5 等价形式
+
+旋转误差表达式也有多种形式。为了避免混淆, 这里不使用 $\theta_{w, b(t+1)}$, 因此不存在例如 $\frac{\partial \theta_{w, b(t+1)}}{\partial \eta^{B g}}=\frac{\partial \delta \theta_{w, b(t+1)}}{\partial \eta^{B g}}$ 的表达。
+表达式 $\frac{\partial \delta \theta_{w, b(t+1)}}{\partial \eta^{B g}}=\frac{\partial \delta \theta_{w, b(t+1)}}{\partial \delta \eta^{B g}}$ 是合理的，证明略。
+除此之外, 关于预积分中的旋转分量 $\gamma_{i, k+1}$ 有如下等价表达:
+$$
+\frac{\partial \delta \theta_{i, k+1}}{\partial \delta \theta_{i, k}}=\frac{\partial\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}}{\partial \delta \theta_{i, k}}=\frac{\partial \delta\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}}{\partial \delta \theta_{i, k}}
+$$
+由式 $q_{k+1}^{b i, b(k+1)}=\gamma_{i, k+1}$ 添加扰动可得:
+$$
+\begin{aligned}
+\hat{q}_{k+1}^{b i, b(k+1)} \otimes &\left[\begin{array}{c}
+1 \\
+\delta \theta_{i, k+1} / 2
+\end{array}\right]=\hat{\gamma}_{i, k+1} \otimes\left[\begin{array}{c}
+1 \\
+\delta\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z} / 2
+\end{array}\right] \\
+&\left[\begin{array}{c}
+1 \\
+\delta \theta_{i, k+1} / 2
+\end{array}\right]=\left[\begin{array}{c}
+1 \\
+\delta\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z} / 2
+\end{array}\right]
+\end{aligned}
+$$
+这表明 $\delta \theta_{i, k+1} 、 \delta\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}$ 等价。
+以下将证明: $\frac{\partial \delta \theta_{i, k+1}}{\partial \delta \theta_{i, k}}=\frac{\partial\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}}{\partial \delta \theta_{i, k}}$
+由 $\delta \theta_{i, k+1} 、 \delta\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}$ 等价可得
+$$
+\frac{\partial \delta \theta_{i, k+1}}{\partial \delta \theta_{i, k}}=\frac{\partial \delta\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}}{\partial \delta \theta_{i, k}}
+$$
+再对后半部分进行分解, 可得:
+$$
+\frac{\partial \delta\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}}{\partial \delta \theta_{i, k}}=\frac{\partial\left(\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}-\left\lfloor\hat{\gamma}_{i, k+1}\right\rfloor_{x y z}\right)}{\partial \delta \theta_{i, k}}=\frac{\partial\left\lfloor\gamma_{i, k+1}\right\rfloor_{x y z}}{\partial \delta \theta_{i, k}}
+$$
+旋转状态误差传递也可以由微分方程推导得出, 文献 $[11]$ 已经做了很详细的说明, 这里就不再赘述。
+
+## 附录二 IMU预积分误差传递雅克比矩阵推导
+
+### 1. 关于李群流形的一些基本概念和性质
+由于预积分雅克比是在李群流形 $S O(3)$ 上推导的, 有必要对相关知识进行介绍。
+
+#### 1.1 hat 运算符“^”
+
+将 3 维向量 $\boldsymbol{a} \in \mathbb{R}^{3}$ 映射为 $3 \times 3$ 反对称矩阵, 如下:
+$$
+\boldsymbol{a}^{\wedge}=\left[\begin{array}{l}
+a_{1} \\
+a_{2} \\
+a_{3}
+\end{array}\right]^{\wedge}=\left[\begin{array}{ccc}
+0 & -a_{3} & a_{2} \\
+a_{3} & 0 & -a_{1} \\
+-a_{2} & a_{1} & 0
+\end{array}\right]
+$$
+
+#### 1.2 hat 运算符性质
+性质 1 : 设 $\boldsymbol{b} \in \mathbb{R}^{3}$, 则
+$$
+\boldsymbol{a}^{\wedge} \cdot \boldsymbol{b}=-\boldsymbol{b}^{\wedge} \cdot \boldsymbol{a}
+$$
+性质 2 ：设 $R \in S O(3)$, 则
+$$
+(R \cdot \boldsymbol{a})^{\wedge}=R \cdot \boldsymbol{a}^{\wedge} \cdot R^{T}
+$$
+#### 1.3 指数映射
+指数映射 $\exp (\cdot)$ 将李代数 $s o(3)$ 中的元素映射到 $S O(3)$ 中, 当元素为小量时, 有一阶近似, 设 $\theta \in s o(3), \theta$ 为一个小量, 则:
+$$
+\exp \left(\theta^{\wedge}\right) \approx \mathrm{I}+\theta^{\wedge}
+$$
+#### 1.4 旋转矩阵相关导数的定义
+推导使用到了上面的扰动求导模型。例如旋转矩阵 $R \in S O(3)$, 向量 $p \in \mathbb{R}^{3}$, 以李代数表示的扰动记为 $\varphi, \varphi$ 是一个小量, $\varphi \in s o(3)$ 。根据扰动参考坐标系的不同, 可分为左乘扰动（乘在   $R$ 左边）和右乘扰动（乘在 $R$ 右边）两种。
+向量 $R \cdot p$ 相对 $\varphi$ 的右扰动导数定义为:
+$$
+\begin{aligned}
+\frac{\partial R \cdot p}{\partial \varphi} & \stackrel{\Delta}{=} \lim _{\varphi \rightarrow 0} \frac{R \cdot \exp \left(\varphi^{\wedge}\right) \cdot p-R \cdot p}{\varphi} \\
+& \approx \lim _{\varphi \rightarrow 0} \frac{R \cdot\left(\mathrm{I}+\varphi^{\wedge}\right) \cdot p-R \cdot p}{\varphi} \\
+&=\lim _{\varphi \rightarrow 0} \frac{R \cdot \varphi^{\wedge} \cdot p}{\varphi} \\
+ &\overset{\text { 叉积性质 }}{=}\lim _{\varphi \rightarrow 0} \frac{R \cdot\left(-p^{\wedge} \cdot \varphi\right)}{\varphi} \\
+&=-R \cdot p^{\wedge}
+\end{aligned}
+$$
+向量 $R \cdot p$ 相对 $\varphi$ 的左扰动导数定义为:
+$$
+\begin{aligned}
+\frac{\partial R \cdot p}{\partial \varphi} & \stackrel{\Delta}{=} \lim _{\varphi \rightarrow 0} \frac{\exp \left(\varphi^{\wedge}\right) \cdot R \cdot  p-R \cdot p}{\varphi} \\
+& \approx \lim _{\varphi \rightarrow 0} \frac{\left(\mathrm{I}+\varphi^{\wedge}\right) \cdot R \cdot p-R \cdot p}{\varphi} \\
+&=\lim _{\varphi \rightarrow 0} \frac{\varphi^{\wedge} \cdot R \cdot p}{\varphi} =\lim _{\varphi \rightarrow 0} \frac{\varphi^{\wedge} \cdot (R \cdot p)}{\varphi} \\
+ &\overset{\text { 叉积性质 }}{=}\lim _{\varphi \rightarrow 0} \frac{-(R \cdot p)^{\wedge} \cdot \varphi}{\varphi} \\
+&=-(R \cdot p)^{\wedge}
+\end{aligned}
+$$
+
+#### 1.5 局部扰动和全局扰动
+
+需要特别注意的是, 由于扰动参与的表达非常简洁, 扰动方向和旋转关系极易被忽略。
+
+ 以全局坐标系 $(\mathrm{w})$ 相对于局部坐标系 $(\mathrm{b})$ 为例, 假设扰动 $\varphi$ 表示的旋转角度绝对值为 为 $\phi$, 则右扰动的完整形式为:
+$$
+\frac{\partial R^{w,b} \cdot p^b}{\partial \varphi^{b,b'}} = -R^{w,b} \cdot (p^b)^{\wedge}
+$$
+
+
+右扰动 $\varphi^{b, b^{\prime}}$ 以 $\mathrm{b}$ 系为参考系, 相对旋转 $\phi$ 。右扰动是局部扰动。 
+
+左扰动的完整形式为:
+$$
+\frac{\partial R^{w,b} \cdot p^b}{\partial \varphi^{w',w}} = -(R^{w,b} \cdot p^b)^{\wedge}
+$$
+
+
+左扰动是 $\varphi^{w^{\prime}, w}$ 以 $w$ 系为参考系, 相对旋转 $-\phi$ 。左扰动是全局扰动。 
+
+不同扰动的定义决定着后续优化算法迭代时旋转增量的形式和方向。
+
+#### 1.6 三元组四元数乘积性质
+
+对于四元数 $q$ 及其共轭 $q^{*}$, 以及四元数 $\boldsymbol{p}$, 其中 $\boldsymbol{p}=\left[\begin{array}{c}p_{w} \\ p_{x} \\ p_{y} \\ p_{z}\end{array}\right]=\left[\begin{array}{c}p_{w} \\ \boldsymbol{p}_{v}\end{array}\right], p_{w}$ 和 $\boldsymbol{p}_{v}$ 分别为 $\boldsymbol{p}$ 的实 部和虚部, 存在如下关系:
+$$
+q \otimes \boldsymbol{p} \otimes q^{*}=\left[\begin{array}{c}
+p_{w} \\
+R\{q\} \cdot \boldsymbol{p}_{v}
+\end{array}\right]
+$$
+更详细的背景知识介绍请参考文献 $[7]$ 。
+
+### 2. 雅克比推导
+
+由状态误差模型可知:
+$$
+F_{k}=\left[\begin{array}{llll}
+\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \delta Y_{k}}}_{\mathrm{I}} 
+& \underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \delta Y_{k}}}_{\mathrm{II}} 
+& \underbrace{\frac{
+\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \delta Y_{k}}}_{\mathrm{III}} 
+& \underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \delta Y_{k}}}_{\mathrm{IV}} 
+& \underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \delta Y_{k}}}_{\mathrm{V}}
+\end{array}\right]^{T}
+$$
+
+$$
+G_{k}=\left[\begin{array}{cccc}
+\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{a}} 
+\quad \frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{g}} 
+\quad \frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{B a}} 
+\quad \frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{B g}}}_{\mathrm{I}} 
+\\
+  \underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{a}} 
+\quad \frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{g}} 
+\quad \frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{B a}} 
+\quad \frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{B g}} }_{\mathrm{II}} 
+\\
+  \underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{a}} 
+\quad \frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{g}} 
+\quad \frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{B a}} 
+\quad \frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{B g}} }_{\mathrm{III}} 
+\\
+  \underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{a}} 
+\quad \frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{g}} 
+\quad \frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{B a}} 
+\quad \frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{B g}} }_{\mathrm{IV}} 
+\\
+  \underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{a}} 
+\quad \frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{g}} 
+\quad \frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{B a}} 
+\quad \frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{B g}}
+}_{\mathrm{V}} 
+\end{array}\right]
+$$
+
+由雅克比矩阵的表示形式, 可知 ESKF 雅克比矩阵包含着一系列偏导单元, 即 $\textcolor{Red}{\alpha_{i, k+1}}、\textcolor{BurntOrange}{\beta_{i, k+1}} 、 \textcolor{PineGreen}{\delta \theta_{i, k+1}} 、 \textcolor{Blue}{B_{k+1}^{a}} 、 \textcolor{Fuchsia}{B_{k+1}^{g}}$ 元素对 $\textcolor{Red}{\alpha_{i, k}} 、 \textcolor{BurntOrange}{\beta_{i, k}} 、 \textcolor{PineGreen}{\delta \theta_{i, k} }、 \textcolor{Blue}{B_{k}^{a} }、 \textcolor{Fuchsia}{B_{k}^{g}} 、 \eta^{a} 、 \eta^{g} 、 \eta^{B a} 、 \eta^{B g}$ 元素的 偏导。其中涉及到姿态的变为 $\textcolor{PineGreen}{\delta \theta_{i, k+1}} 、 \textcolor{Fuchsia}{B_{k+1}^{g} }、 \textcolor{PineGreen}{\delta \theta_{i, k} }、 \textcolor{Fuchsia}{B_{k}^{g}} 、 \eta^{g} 、 \eta^{B g}$ 。在推导过程中, 不涉及 姿态的变量偏导单元容易观察得出变量之间的关系并取得导数; 由于旋转表示方式的特殊性, 不容易直观找到涉及到姿态的变量偏导单元中相关变量的关联关系, 需要借助扰动求导方法将 关注信息从相关项目中的 “暴露”出来。
+为了便于表示, 以下将按照行号进行推导。
+$$
+F_{k} \stackrel{\Delta}{=}\left[\begin{array}{lllll}
+F_{\mathrm{I}} & F_{\mathrm{II}} & F_{\mathrm{III}} & F_{\mathrm{IV}} & F_{\mathrm{V}}
+\end{array}\right]^{T} 
+$$
+
+$$
+G_{k} \stackrel{\Delta}{=}\left[\begin{array}{lllll}
+G_{\mathrm{I}} & G_{\mathrm{II}} & G_{\mathrm{III}} & G_{\mathrm{IV}} & G_{\mathrm{V}}
+\end{array}\right]^{T}
+$$
+
+#### 2.1 第 $I$ 行 $F_{\mathrm{I}} 、 G_{\mathrm{I}}$ 推导:
+
+由式(4.23)可知:
+$$
+\textcolor{Red}{\alpha_{i, k+1}}=\textcolor{Red}{\underbrace{\alpha_{i, k}}_{\textcolor{black}{\langle\mathrm{i}\rangle}}} + \textcolor{BurntOrange}{\underbrace{\beta_{i, k}}_{\textcolor{black}{\langle 2\rangle}}} \cdot \Delta t + \frac{1}{2}\underbrace{\bar{a}_{k}^{b i}}_{\langle 3\rangle} \Delta t^{2}
+$$
+其中 $\bar{a}_{k}^{b i}$ 和 $\bar{\omega}_{k}^{b k}$ 根据变换关系有以下等价的表达方式, 后续会根据需要选择合适的形式:
+$$
+\bar{a}_{k}^{b i}
+&=&\frac{1}{2}\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)\right] \\
+&=&\frac{1}{2}\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\hat{a}_{k}^{b k}+\eta^{a}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(\hat{a}_{k+1}^{b(k+1)}+\eta^{a}-\textcolor{Blue}{B_{k}^{a}}-\eta^{B a} \cdot \Delta t\right)\right] \\
+&=&\frac{1}{2}\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\hat{a}_{k}^{b k}+\eta^{a}-\textcolor{Blue}{\hat{B}_{i}^{a}}-\eta^{B a} \cdot t_{i, k}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(\hat{a}_{k+1}^{b(k+1)}+\eta^{a}-\textcolor{Blue}{\widehat{B}_{i}^{a}}-\eta^{B a} \cdot t_{i, k+1}\right)\right] \\
+&=&\frac{1}{2}\left[\underbrace{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}}}_{\langle 4\rangle} \cdot(\hat{a}_{k}^{b k}+\underbrace{\eta^{a}}_{\langle 5\rangle}-\underbrace{\textcolor{Blue}{B_{k}^{a}}}_{\langle 6\rangle})+\underbrace{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}}_{\langle 7\rangle} \cdot(\hat{a}_{k+1}^{b(k+1)}+\underbrace{\eta^{a}}_{\langle 8\rangle}-\underbrace{\textcolor{Blue}{B_{k}^{a}}}_{\langle 9\rangle}-\underbrace{\eta^{B a}}_{\langle 10\rangle} \cdot \Delta t)\right]
+$$
+
+$$
+\begin{aligned}
+\bar{\omega}_{k}^{b k} &=\frac{1}{2}\left(\omega_{k}^{b k}+\omega_{k+1}^{b(k+1)}\right)-B_{k}^{g} \\
+&=\frac{1}{2}\left(\omega_{k}^{b k}+\omega_{k+1}^{b(k+1)}\right)-\widehat{B}_{i}^{g}-\eta^{B g} \cdot t_{i, k} \\
+&=\frac{1}{2}\left(\hat{\omega}_{k}^{b k}+\hat{\omega}_{k+1}^{b(k+1)}\right)+\eta^{g}-\widehat{B}_{k}^{g}-\eta^{B g} \\
+&=\frac{1}{2}\left(\hat{\omega}_{k}^{b k}+\hat{\omega}_{k+1}^{b(k+1)}\right)+\eta^{g}-\widehat{B}_{i}^{g}-\eta^{B g} \cdot t_{i, k}
+\end{aligned}
+$$
+
+可以看到与元素 $\textcolor{Red}{\alpha_{i, k}}$ 有关的是第 $<1>$ 项; 与 $\textcolor{BurntOrange}{\beta_{i, k}}$ 相关的是第 $<2>$ 项; 与 $\textcolor{Blue}{B_{k}^{a}}$ 有关是第 $<6>、<9> ;$ 与 $\eta^{a}$ 相关的是第 $<5>、 <8>$ 项; 与 $\eta^{B a}$ 相关的是第 $<6>、<9>、<10>$ 项。（<font color="red">这一点是本文推导过程中的新发现, VINS-Mono 认为偏置噪声与 $\alpha_{i, k+1}$ 无关</font>。)
+与姿态相关的量隐藏在与旋转相关的项目中, 例如与 $\textcolor{PineGreen}{\theta_{i, k}}$ 隐藏在公式中的第 $<3>$ 项中; 与 $\textcolor{Fuchsia}{B_{i, k}^{g}}$ 有关项隐藏在第 $<4>$ 项有关 $\textcolor{Fuchsia}{q_{t}^{b i, b k}}$ 的表达中。相关细节将在后续推导过程详细介绍。
+
+##### 2.1.1 $F_{\mathrm{I}}$ 的推导
+
+$$
+F_{\mathrm{I}}=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \delta Y_{k}}=[
+\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}}_{F 11} 
+\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}}_{F 12} 
+\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}}_{F 13} 
+\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}}_{F 14} 
+\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}}_{F 15}]
+$$
+易知:
+$$
+\begin{array}{c}
+F_{11}=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}=\mathrm{I} \\
+F_{12}=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}=\mathrm{I} \cdot \Delta t
+\end{array}
+$$
+
+$$
+F_{13}
+&= &\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}
+\\
+&= &\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{k}^{b i}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}
+\\
+&= &\frac{\Delta t^{2}}{2} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)\right]}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}} 
+\\
+&= &\frac{\Delta t^{2}}{2} \cdot \underbrace{\frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)}{\partial \delta \theta_{i, k}}}_{(1)} + \frac{\Delta t^{2}}{2} \cdot \underbrace{\frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}}_{(2)}
+$$
+
+
+下面分(1)、(2)两项来讨论, 根据导数的定义, 在(1)项中添加右扰动
+$$
+(1) &= &\lim _{\textcolor{PineGreen}{\delta \theta_{i, k}} \rightarrow 0} \frac{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot \exp \left(\textcolor{PineGreen}{\delta \theta_{i, k}}\right) \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)-\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)}{\textcolor{PineGreen}{\delta \theta_{i, k}}}
+\\
+&\approx &\lim _{\textcolor{PineGreen}{\delta \theta_{i, k}} \rightarrow 0} \frac{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(I+\textcolor{PineGreen}{\delta \theta_{i, k}^{\textcolor{Black}{\wedge}}}\right) \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)-\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)}{\textcolor{PineGreen}{\delta \theta_{i, k}}}
+\\
+&= &\lim _{\textcolor{PineGreen}{\delta \theta_{i, k}} \rightarrow 0} \frac{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot \textcolor{PineGreen}{\delta \theta_{i, k}^{\textcolor{Black}{\wedge}}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)}{\textcolor{PineGreen}{\delta \theta_{i, k}}}
+\\
+&= &-\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)^{\wedge}
+$$
+
+
+
+同理可在(2)项中添加右扰动, 但由于扰动 $\textcolor{PineGreen}{\delta \theta_{i, k}}$ 发生在 $\mathrm{k}$ 时刻, 并且参考坐标系是 $b_{k}$, 因此 需要对 $\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}$ 作如下转换:
+$$
+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}
+=
+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b \textcolor{Black}{k}}\right\}}
+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}}
+$$
+这样就 “暴露” 出来参考基准 $b_{k}$, 其中 $\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}}$ 是在参考系 $b_{k+1}$ 相对 $b_{k}$ 的姿态, 数值可由 IMU 观测 $\hat{\bar{\omega}}_{k}^{b k}$ 取得, $\bar{\omega}_{k}^{b k}$ 是平均角速度, $\hat{\bar{\omega}}_{k}^{b k}=\frac{1}{2}\left(\hat{\omega}_{k}^{b k}+\hat{\omega}_{k+1}^{b(k+1)}\right)-B_{k}^{g}$, 即:
+$$
+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}}=\exp \left[\left(\hat{\bar{\omega}}_{k}^{b k} \cdot \Delta t\right)^{\wedge}\right] \approx \mathrm{I}+\left[\hat{\bar{\omega}}_{k}^{b k} \cdot \Delta t\right]^{\wedge}
+$$
+得到导数表达式:
+$$
+(2)
+&= & \lim _{\textcolor{PineGreen}{\delta \theta_{i, k}} \rightarrow 0} \frac{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i,  \textcolor{Black}{bk}}\right\}} \cdot \exp \left(\textcolor{PineGreen}{\delta \theta_{i, k}}\right) \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{PineGreen}{\delta \theta_{i, k}}} \\
+& &-\lim _{\textcolor{PineGreen}{\delta \theta_{i, k}} \rightarrow 0} \frac{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i,  \textcolor{Black}{bk}}\right\}} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{PineGreen}{\delta \theta_{i, k}}} \\
+&\approx & \lim _{\textcolor{PineGreen}{\delta \theta_{i, k}} \rightarrow 0} \frac{\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i,  \textcolor{Black}{bk}}\right\}} \cdot \textcolor{PineGreen}{\delta \theta_{i, k}^{\textcolor{Black}{\wedge}}} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{PineGreen}{\delta \theta_{i, k}}} \\
+&= &-\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i,  \textcolor{Black}{bk}}\right\}} \cdot\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}}\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)\right]^{\wedge}
+$$
+根据 hat 运算符性质 2 进一步化简
+$$
+(2) 
+&= &-\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i,  \textcolor{Black}{bk}}\right\}} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)^{\wedge} \cdot \textcolor{Fuchsia}{R^{\textcolor{Black}{T}}\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}} \\
+&= &-\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b \textcolor{Black}{k}, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)^{\wedge} \cdot\left\{\mathrm{I}-\left[\left(\bar{\omega}_{k}^{b k}-B_{k}^{g}\right) \cdot \Delta t\right]^{\wedge}\right\}
+$$
+综上所述
+$$
+\begin{aligned}
+F_{13}=& \frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}} \\
+=&-\frac{\Delta t^{2}}{4} \cdot\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i,  \textcolor{Black}{bk}}\right\}}  \cdot\left(\hat{a}_{k}^{b k}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge} \\
+&-\frac{\Delta t^{2}}{4} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i,  bk+1}\right\}}  \cdot\left(\hat{a}_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge} \cdot\left\{\mathrm{I}-\left[\left(\hat{\bar{\omega}}_{k}^{b k}-\widehat{B}_{i}^{g}\right) \cdot \Delta t\right]^{\wedge}\right\}
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+F_{14} &=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}
+=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k}^{a}}-\eta^{B a} \cdot \Delta t\right)\right]}{\textcolor{Blue}{\partial \delta B_{k}^{a}}} \\
+&=-\frac{\Delta t^{2}}{4} \cdot\left(\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}}+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}\right)
+\end{aligned}
+$$
+$F_{15}$ 的计算涉及到 $\textcolor{Fuchsia}{B_{k}^{g}, B_{k}^{g}}$ 是与角速度 $\omega_{k}^{b k}$ 相关的变量, 因此需要从姿态中释放出有关角速 度的信息, 然后利用扰动求导和链式法则求取相关项。
+$$
+\begin{aligned}
+F_{15} &=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}
+=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)\right]}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}
+\end{aligned}
+$$
+$\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}}$ 的取得只与 $\mathrm{k}$ 时刻之前的旋转有关, 因此与 $\omega_{k}^{b k}$ 无关。与 $\omega_{k}^{b k}$ 有关的项为 $\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}$, 类似于 $F_{13}$ 的计算, 对 $\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}$ 进行展开:
+$$
+\begin{aligned}
+& \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}} \\
+=& \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, \textcolor{Black}{b k}}\right\}} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{\textcolor{Black}{b k}, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}} \\
+=& \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, \textcolor{Black}{b k}}\right\}} \cdot\left\{\mathrm{I}+\left[\left(\bar{\omega}_{k}^{b k}-\textcolor{Fuchsia}{B_{k}^{g}}\right) \cdot \Delta t\right]^{\wedge}\right\} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}} \\
+=& \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, \textcolor{Black}{b k}}\right\}} \cdot\left[\left(\bar{\omega}_{k}^{b k}-\textcolor{Fuchsia}{B_{k}^{g}}\right) \cdot \Delta t\right]^{\wedge} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}} \\
+=&-\frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, \textcolor{Black}{b k}}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)^{\wedge} \cdot\left[\left(\bar{\omega}_{k}^{b k}-\textcolor{Fuchsia}{B_{k}^{g}}\right) \cdot \Delta t\right]}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}} \\
+=& \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, \textcolor{Black}{b k}}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)^{\wedge} \cdot \Delta t
+\end{aligned}
+$$
+综上所述:
+$$
+F_{15}=\frac{1}{4} \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, \textcolor{Black}{b k}}\right\}} \cdot \Delta t^{3} \cdot\left(\hat{a}_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge}
+$$
+##### 2.1.2  $G_{\mathrm{I}}$ 的推导
+
+$$
+G_{\mathrm{I}} =[\underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{a}}}_{G 11} \underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{g}}}_{G 12} \underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{B a}}}_{G 13} \underbrace{\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{B g}}}_{G 14}]
+$$
+
+$$
+\begin{aligned}
+G_{11} &= \frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{a}}
+\\
+&= \frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{a}} 
+\\
+&= \frac{\Delta t^{2}}{2} \cdot \frac{\partial \frac{1}{2}\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\hat{a}_{k}^{b k}+\eta^{a}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(\hat{a}_{k+1}^{b(k+1)}+\eta^{a}-\textcolor{Blue}{B_{\textcolor{Black}{k+1}}^{a}}\right)\right]}{\partial \eta^{a}} 
+\\
+&= \frac{\Delta t^{2}}{4} \cdot\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}}+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}\right]
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+G_{12} &=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{g}}=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{g}} \\
+&=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \frac{1}{2}\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)\right]}{\partial \eta^{g}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)}{\partial \eta^{g}}+\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\partial \eta^{g}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\partial \eta^{g}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left\{\mathrm{I}+\left[\left(\bar{\omega}_{k}^{b k}-\textcolor{Fuchsia}{B_{k}^{g}}\right) \cdot \Delta t\right]^{\wedge}\right\} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\partial \eta^{g}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left[\left(\bar{\omega}_{k}^{b k}-\textcolor{Fuchsia}{B_{k}^{g}}\right) \cdot \Delta t\right]^{\wedge} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)}{\partial \eta^{g}} \\
+&=-\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)^{\wedge} \cdot\left[\left(\hat{\bar{\omega}}_{k}^{b k}+\eta^{g}-\textcolor{Fuchsia}{B_{k}^{g}}\right) \cdot \Delta t\right]}{\partial \eta^{g}} \\
+&=-\frac{\Delta t^{3}}{4} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\hat{a}_{k+1}^{b(k+1)}-\textcolor{Blue}{\hat{B}_{i}^{a}}\right)^{\wedge} 
+\end{aligned}
+$$
+$$
+G_{13}=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{B a}}=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{B a}}
+$$
+
+
+
+$G_{13}$ 表达上有一些疑问, 如果认为此时使用的偏置均值是 $\textcolor{Blue}{\widehat{B}_{i}^{a}}$, 那么表达式为
+$$
+\begin{aligned}
+G_{13} &=\frac{\Delta t^{2}}{4} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{\widehat{B}_{i}^{a}}-\eta^{B a} \cdot t_{i, k}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{i}^{a}}-\eta^{B a} \cdot t_{i, k+1}\right)\right]}{\partial \eta^{B a}} \\
+&=-\frac{\Delta t^{2}}{4} \cdot\left(\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot t_{i, k}+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot t_{i, k+1}\right)
+\end{aligned}
+$$
+如果认为此时使用的偏置均值是 $\textcolor{Blue}{\widehat{B}_{k}^{a}}$, 那么表达式为:
+$$
+\begin{aligned}
+G_{13} &=\frac{\Delta t^{2}}{4} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{\widehat{B}_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{k}^{a}}-\eta^{B a} \cdot \Delta t\right)\right]}{\partial \eta^{B a}} \\
+&=-\frac{\Delta t^{2}}{4} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot \Delta t
+\end{aligned}
+$$
+如果认为此时使用的偏置均值是 $\textcolor{Blue}{\widehat{B}_{k-1}^{a}}$, 那么表达式为:
+$$
+\begin{aligned}
+G_{13} &=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{B a}}=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{B a}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{\widehat{B}_{k-1}^{a}}-\eta^{B a} \cdot \Delta t\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{k-1}^{a}}-2 \cdot \eta^{B a} \cdot \Delta t\right)\right]}{\partial \eta^{B a}} \\
+&=-\frac{\Delta t^{2}}{4} \cdot\left(\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot \Delta t+2 \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot \Delta t\right)
+\end{aligned}
+$$
+按照 VINS-Mono 代码进行公式反推, 使用的是表达式(8.36), 但本文认为表达式(8.35)更 为合理。
+$$
+\begin{aligned}
+G_{14} &=\frac{\textcolor{Red}{\partial \alpha_{i, k+1}}}{\partial \eta^{B g}}=\frac{\Delta t^{2}}{2} \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{B g}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k}^{b k}-\textcolor{Blue}{B_{k}^{a}}\right)+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)\right]}{\partial \eta^{B g}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)\right]}{\partial \eta^{B g}} \\
+&=-\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)^{\wedge} \cdot\left[\left(\hat{\bar{\omega}}_{k}^{b k}+\eta^{g}-\textcolor{Fuchsia}{B_{k}^{g}}\right) \cdot \Delta t\right]}{\partial \eta^{B g}} \\
+&=\frac{\Delta t^{2}}{4} \cdot \frac{\partial \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(a_{k+1}^{b(k+1)}-\textcolor{Blue}{B_{k+1}^{a}}\right)^{\wedge} \cdot\left[\left(\textcolor{Fuchsia}{\widehat{B}_{i}^{g}}+\eta^{B g} \cdot t_{i, k+1}\right) \cdot \Delta t\right]}{\partial \eta^{B g}} \\
+&=\frac{\Delta t^{3}}{4} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\widehat{a}_{k+1}^{b b(k+1)}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge} \cdot t_{i, k+1}
+\end{aligned}
+$$
+
+#### 2.2 第 $II$ 行 $F_{\mathrm{II}} 、 G_{\mathrm{II}}$ 推导:
+
+由式(4.18)可知:
+$$
+\textcolor{BurntOrange}{\beta_{i, k+1}}=\textcolor{BurntOrange}{\beta_{i, k}}+\bar{a}_{k}^{b i} \cdot \Delta t
+$$
+
+##### 2.2.1 $F_{\text {II }}$ 的推导
+
+$$
+F_{\mathrm{II}}
+=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \delta Y_{k}}
+=\left[
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}}_{F 21} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}}_{F 22} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}}_{F 23} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}}_{F 24} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}}_{F 25}\right]
+$$
+参考第 $I$ 行的原理并使用其已取得的形式, 可知:
+$$
+F_{21}=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}=0
+$$
+
+$$
+F_{22}=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}=\mathrm{I}
+$$
+
+$$
+\begin{aligned}
+F_{23}
+&=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}=\frac{\partial \bar{a}_{k}^{b i} \cdot \Delta t}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}} \\
+&=-\frac{\Delta t}{2} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\hat{a}_{k}^{b k}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge} \\
+& \qquad -\frac{\Delta t}{2} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b k+1}\right\}} \cdot\left(\hat{a}_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge} \cdot\left\{\mathrm{I}-\left[\left(\hat{\bar{\omega}}_{k}^{b k}-\widehat{B}_{i}^{g}\right) \cdot \Delta t\right]^{\wedge}\right\}
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+F_{24}
+&=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}=\frac{\partial \bar{a}_{k}^{b i} \cdot \Delta t}{\textcolor{Blue}{\partial \delta B_{k}^{a}}} \\
+&=-\frac{\Delta t}{2} \cdot\left(\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}}+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}\right)
+\end{aligned}
+$$
+
+
+$$
+F_{25}=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}=\frac{\partial \bar{a}_{k}^{b i} \cdot \Delta t}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}=0
+$$
+##### 2.2.2  $G_{\mathrm{II}}$ 的推导
+
+$$
+G_{I I}=[
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{a}}}_{G 21} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{g}}}_{G 22} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{B a}}}_{a 23}
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{B g}}}_{G 24}]
+$$
+
+$$
+\begin{aligned}
+G_{21}
+&=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{a}}=\Delta t \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{a}} \\
+&=\frac{\Delta t}{2} \cdot\left[\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}}+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k+1}}^{b i, b(k+1)}\right\}}\right]
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+G_{22}
+&=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{g}}=\Delta t \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{g}} \\
+&=-\frac{\Delta t^{2}}{2} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\hat{a}_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge}
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+G_{23}
+&=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{B a}}=\Delta t \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{B a}} \\
+&=-\frac{\Delta t}{2} \cdot\left(\textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot t_{i, k}+\textcolor{Fuchsia}{R\left\{q_{\textcolor{Blue}{k+1}}^{b i, b(k+1)}\right\}} \cdot t_{i, k+1}\right)
+\end{aligned}
+$$
+
+
+$$
+\begin{aligned}
+G_{24}
+&=\frac{\textcolor{BurntOrange}{\partial \beta_{i, k+1}}}{\partial \eta^{B g}}=\Delta t \cdot \frac{\partial \bar{a}_{i}^{b k}}{\partial \eta^{B g}} \\
+&=\frac{\Delta t^{2}}{2} \cdot \textcolor{Fuchsia}{R\left\{q_{\textcolor{Black}{k}}^{b i, b k}\right\}} \cdot\left(\hat{a}_{k+1}^{b(k+1)}-\textcolor{Blue}{\widehat{B}_{i}^{a}}\right)^{\wedge} \cdot t_{i, k+1}
+\end{aligned}
+$$
+
+
+#### 2.3 第 $III$ 行 $F_{\mathrm{III}} 、 G_{\mathrm{III}}$ 推导:
+
+$$
+F_{\mathrm{III}}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \delta Y_{k}}=\left[
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}}_{F 31} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}}_{F 32} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}}_{F 33} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}}_{F 34} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}}_{F 35}
+\right]
+$$
+$$
+G_{\mathrm{III}}=\left[
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{a}}}_{G 31} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{g}}}_{G 32} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{B a}}}_{G 33} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{B g}}}_{G 34}
+\right]
+$$
+
+
+
+推导过程与参考附录 1 中有关旋转状态误差传递推导类似, 这里直接给出结论:
+$$
+F_{31}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}=0
+$$
+
+$$
+F_{32}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}=0
+$$
+
+$$
+F_{33}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}=R^{-1}\left\{\widehat{\gamma}_{k, k+1}\right\} \approx I-\left[\hat{\bar{\omega}}_{k}^{b k} \cdot \Delta t\right]^{\wedge}
+$$
+
+$$
+F_{34}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}=0
+$$
+
+$$
+F_{35}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}=-\Delta t \cdot I
+$$
+
+$$
+G_{31}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{a}}=0
+$$
+
+$$
+G_{32}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{g}}=\Delta t \cdot I
+$$
+
+$$
+G_{33}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{B a}}=0
+$$
+
+$$
+G_{34}=\frac{\textcolor{PineGreen}{\partial \delta \theta_{i, k+1}}}{\partial \eta^{B g}}=\Delta t^{2} \cdot I
+$$
+
+
+
+#### 2.4 第 $IV$ 行 $F_{\mathrm{IV}} 、 G_{\mathrm{IV}}$ 推导:
+
+$$
+F_{\mathrm{IV}}=\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \delta Y_{k}} =\left[
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{B a}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}}_{F 41} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{B a}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}}_{F 42} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{B a}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}}_{F 43} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{B a}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}}_{F 44} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{B a}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}}_{F 45}
+\right]
+$$
+$$
+G_{\mathrm{IV}} =\left[
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{a}}}_{G 41} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{g}}}_{G 42} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{B a}}}_{G 43} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{B g}}}_{G 44}
+\right]
+$$
+
+
+
+$B_{k+1}^{B a}$ 的表达式只与 $\delta B_{k}^{a} 、 \eta^{B a}$ 有关, 因此除了 $F_{44} 、 G_{43}$, 其他表达式都为零。
+$$
+F_{44}=\frac{\textcolor{Blue}{\partial B_{k+1}^{B a}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}=\frac{\partial\left(\textcolor{Blue}{B_{k}^{a}}+\eta^{B a} \cdot \Delta t\right)}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}=I
+$$
+
+$$
+G_{43}=\frac{\textcolor{Blue}{\partial B_{k+1}^{a}}}{\partial \eta^{B a}}=\frac{\partial\left(\textcolor{Blue}{\hat{B}_{i}^{a}}+\eta^{B a} \cdot t_{i, k}\right)}{\partial \eta^{B a}}=I \cdot t_{i, k}
+$$
+
+
+
+#### 2.5 第 $V$ 行 $F_{\mathrm{V}} 、 G_{\mathrm{V}}$ 推导:
+
+$$
+F_{\mathrm{V}}=\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \delta Y_{k}} =\left[ 
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{B g}}}{\textcolor{Red}{\partial \delta \alpha_{i, k}}}}_{F 51} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{B g}}}{\textcolor{BurntOrange}{\partial \delta \beta_{i, k}}}}_{F 52} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{B g}}}{\textcolor{PineGreen}{\partial \delta \theta_{i, k}}}}_{F 53} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{B g}}}{\textcolor{Blue}{\partial \delta B_{k}^{a}}}}_{F 54} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{i, k+1}^{B g}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}}_{F 55}
+\right]
+$$
+$$
+G_{\mathrm{V}} =\left[
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{a}}}_{G 51} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{g}}}_{G 52}
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{B a}}}_{G 53} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial B_{k+1}^{g}}}{\partial \eta^{B g}}}_{G 54}
+\right]
+$$
+
+
+
+$\textcolor{Fuchsia}{B_{i, k+1}^{B g}}$ 的表达式只与 $\textcolor{Fuchsia}{\delta B_{k}^{g}} 、 \eta^{B g}$ 有关, 因此除了 $F_{55} 、 G_{54}$, 其他表达式都为零。
+$$
+F_{44}=\frac{\textcolor{Fuchsia}{\partial B_{i, k+1}^{B g}}}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}=\frac{\partial\left(\textcolor{Fuchsia}{B_{k}^{g}}+\eta^{B g} \cdot \Delta t\right)}{\textcolor{Fuchsia}{\partial \delta B_{k}^{g}}}=I
+$$
+$$
+G_{43}
+=\frac{\textcolor{Fuchsia}{\partial B_{i, k+1}^{B g}}}{\partial \eta^{B g}}
+=\frac{\partial\left(\textcolor{Fuchsia}{\widehat{B}_{i}^{g}}+\eta^{B g} \cdot t_{i,k}\right)}{\partial \eta^{B g}}
+= I \cdot t_{i,k}
+$$
+
+
+
+## 附录三预积分残差雅克比矩阵推导
+
+由残差雅克比的定义, 首先对 $H_{i}$ 进行推导
+
+### 1. $H_{i}$ 推导
+
+$$
+H_{i} =\left[\begin{array}{ccccc}
+\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta P_{i}^{w}} 
+& \frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta V_{i}^{w}} 
+& \frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta \theta_{i, i^{\prime}}} 
+& \frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{i}^{a}} 
+& \left.\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{i}^{g}} \right\}I
+\\
+\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta P_{i}^{w}} 
+& \frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta V_{i}^{w}} 
+& \frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta \theta_{i, i^{\prime}}} 
+& \frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{i}^{a}} 
+& \left.\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{i}^{g}} \right\}II
+\\
+\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta P_{i}^{w}} 
+& \frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta V_{i}^{w}} 
+& \frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta \theta_{i, i^{\prime}}} 
+& \frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{i}^{a}} 
+& \left.\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{i}^{g}} \right\}III
+\\
+\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta P_{i}^{w}} 
+& \frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta V_{i}^{w}} 
+& \frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta \theta_{i, i^{\prime}}} 
+& \frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{i}^{a}} 
+& \left.\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{i}^{g}} \right\}IV
+\\
+\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta P_{i}^{w}}
+& \frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta V_{i}^{w}} 
+& \frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta \theta_{i, i^{\prime}}} 
+& \frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{i}^{a}} 
+& \left.\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{i}^{g}} \right\}V
+\end{array}\right]
+$$
+
+
+
+#### 1.1 第 $I$ 行推导
+
+对第一行进行标记:
+$$
+H_{i \mathrm{I}}=\left[
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta P_{i}^{w}}}_{H i 11} 
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta V_{i}^{w}}}_{H i 12} 
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta \theta_{i, i^{\prime}}}}_{H i 13} 
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{i}^{a}}}_{H i 14} 
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{i}^{g}}}_{H i 15}
+\right]
+$$
+
+$$
+\begin{aligned}
+H_{i 11}
+&=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta P_{i}^{w}}=\frac{\textcolor{Red}{\partial \alpha_{i, j}^{h}}}{\partial \delta P_{i}^{w}} \\
+&=\frac{\partial \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{P_{j}^{w}}-\textcolor{Blue}{P_{i}^{w}}-\textcolor{Blue}{V_{i}^{w}} \cdot t_{i, j}+1 / 2 \cdot g^{w} \cdot t_{i, j}^{2}\right)}{\partial \delta P_{i}^{w}} \\
+&=-\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}}
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+H_{i 12}
+&=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta V_{i}^{w}}
+=\frac{\textcolor{Red}{\partial \alpha_{i, j}^{h}}}{\partial \delta V_{i}^{w}} \\
+&=\frac{\partial \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{P_{j}^{w}}-\textcolor{Blue}{P_{i}^{w}}-\textcolor{Blue}{V_{i}^{w}} \cdot t_{i, j}+1 / 2 \cdot g^{w} \cdot t_{i, j}^{2}\right)}{\partial \delta V_{i}^{w}} \\
+&=-\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot t_{i, j}
+\end{aligned}
+$$
+
+
+$$
+\begin{aligned}
+H_{i 13}
+&=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta \theta_{i, i^{\prime}}}
+=\frac{\textcolor{Red}{\partial \alpha_{i, j}^{h}}}{\partial \delta \theta_{i, i^{\prime}}} \\
+&=\frac{\partial \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{P_{j}^{w}}-\textcolor{Blue}{P_{i}^{w}}-\textcolor{Blue}{V_{i}^{w}} \cdot t_{i, j}+1 / 2 \cdot g^{w} \cdot t_{i, j}^{2}\right)}{\partial \delta \theta_{i, i^{\prime}}}
+\end{aligned}
+$$
+对公式中的部分符号进行简记:
+$$
+\Delta P \triangleq \textcolor{PineGreen}{P_{j}^{w}}-\textcolor{Blue}{P_{i}^{w}}-\textcolor{Blue}{V_{i}^{w}} \cdot t_{i, j}+1 / 2 \cdot g^{w} \cdot t_{i, j}^{2}
+$$
+
+$$
+\begin{aligned}
+H_{i 13} 
+&=\frac{\partial \textcolor{Fuchsia}{ R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P}{\partial \delta \theta_{i, i^{\prime}}} \\
+&=\lim _{\delta \theta_{i} \rightarrow 0} \frac{\left[\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \exp \left(\delta \theta_{i}\right)\right]^{-1} \cdot \Delta P-\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P}{\delta \theta_{i, i^{\prime}}} \\
+&=\lim _{\delta \theta_{i} \rightarrow 0} \frac{\left[\exp \left(\delta \theta_{i}\right)\right]^{-1} \cdot \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P-\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P}{\delta \theta_{i, i^{\prime}}} \\
+& \approx \lim _{\delta \theta_{i} \rightarrow 0} \frac{\left(I-\delta \theta_{i}^{\wedge}\right) \cdot \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P-\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P}{\delta \theta_{i, i^{\prime}}} \\
+    &=\lim _{\delta \theta_{i} \rightarrow 0} \frac{-\delta \theta_{i}^{\wedge} \cdot \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P}{\delta \theta_{i, i^{\prime}}} \\
+&=\left[\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta P\right]^{\wedge} \\
+&=\left[\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{P_{j}^{w}}-\textcolor{Blue}{P_{i}^{w}}-\textcolor{Blue}{V_{i}^{w}} \cdot t_{i, j}+1 / 2 \cdot g^{w} \cdot t_{i, j}^{2}\right)\right]^{\wedge} 
+\end{aligned}
+$$
+
+$$
+H_{i 14} =\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{i}^{a}}=\frac{\textcolor{Red}{\partial\left(-\alpha_{i, j}\right)}}{\partial \delta B_{i}^{a}}=-J^{\alpha, B a}
+$$
+
+$$
+H_{i 15}=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{i}^{q}}=\frac{\textcolor{Red}{\partial\left(-\alpha_{i, j}\right)}}{\partial \delta B_{i}^{g}}=-J^{\alpha, B g}
+$$
+
+
+
+#### 1.2 第 $II$ 行推导
+
+对第二行进行推导, 记:
+$$
+H_{i I I} =\left[
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta P_{i}^{w}}}_{H i 21}
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta V_{i}^{w}}}_{H i 22} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta \theta_{i, i^{\prime}}}}_{H i 23} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{i}^{a}}}_{H i 24} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{i}^{g}}}_{H i 25}
+\right]
+$$
+
+$$
+H_{i 21} =\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta P_{i}^{w}}=0
+$$
+
+$$
+\begin{aligned}
+H_{i 22} &=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta V_{i}^{w}}=\frac{\textcolor{BurntOrange}{\partial \beta_{i, j}^{h}}}{\partial \delta V_{i}^{w}} \\
+&=\frac{\partial \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{V_{j}^{w}}-\textcolor{Blue}{V_{w, i}}+g^{w} \cdot t_{i, j}\right)}{\partial \delta V_{i}^{w}} \\
+&=-\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}}
+\end{aligned}
+$$
+
+
+$$
+\begin{aligned}
+H_{i 23} &=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta \theta_{i, i^{\prime}}}=\frac{\textcolor{BurntOrange}{\partial \beta_{i, j}^{h}}}{\partial \delta \theta_{i, i^{\prime}}} \\
+&=\frac{\partial \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{V_{j}^{w}}-\textcolor{Blue}{V_{w, i}}+g^{w} \cdot t_{i, j}\right)}{\partial \delta \theta_{i, i^{\prime}}}
+\end{aligned}
+$$
+对公式中的部分符号进行简记:
+$$
+\Delta V \stackrel{\Delta}{=} \textcolor{PineGreen}{V_{j}^{w}}-\textcolor{Blue}{V_{w, i}}+g^{w} \cdot t_{i, j}
+$$
+
+$$
+\begin{aligned}
+H_{i 23} &=\frac{\partial \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta V}{\partial \delta \theta_{i, i^{\prime}}} \\
+&=\left[\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot \Delta V\right]^{\wedge} \\
+&=\left[\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{V_{j}^{w}}-\textcolor{Blue}{V_{w, i}}+g^{w} \cdot t_{i, j}\right)\right]^{\wedge} 
+\end{aligned}
+$$
+
+
+$$
+H_{i 24}=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{i}^{a}}=\frac{\textcolor{BurntOrange}{\partial\left(-\beta_{i, j}\right)}}{\partial \delta B_{i}^{a}}=-J^{\beta, B a}
+$$
+
+$$
+H_{i 25}=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{i}^{g}}=\frac{\textcolor{BurntOrange}{\partial\left(-\beta_{i, j}\right)}}{\partial \delta B_{i}^{g}}=-J^{\beta, B g}
+$$
+#### 1.3 第 $III$ 行推导
+
+对第三行进行推导, 记:
+$$
+H_{i I I I} = \left[
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta P_{i}^{w}}}_{H i 31} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta V_{i}^{w}}}_{H i 32} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta \theta_{i, i^{\prime}}}}_{H i 33} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{i}^{a}}}_{H i 34} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{i}^{q}}}_{H i 35}
+\right]
+$$
+
+$$
+H_{i 31}=\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta P_{i}^{w}}=0
+$$
+
+$$
+H_{i 32}=\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta V_{i}^{w}}=0
+$$
+
+$$
+H_{i 33}
+=\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta \theta_{i, i^{\prime}}}
+=\frac{\partial 2\left\lfloor\gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}}\right\rfloor_{x y z}}{\partial \delta \theta_{i, i^{\prime}}}
+$$
+转化 $\textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}}$ 为 $\left(\textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}}\right)^{*}$, 使其更容易在 $b i$ 坐标系上添加右扰动 $\delta \theta_{i, i^{\prime}}$, 可得
+$$
+\begin{aligned}
+H_{i 33} 
+&=\frac{\partial 2\left\lfloor\gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}}\right\rfloor_{x y z}}{\partial \delta \theta_{i, i^{\prime}}}
+=\frac{\partial 2\left\lfloor\gamma_{i, j}^{*} \otimes\left(\textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}}\right)^{*} \otimes\left(\textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}}\right)^{*}\right\rfloor_{x y z}}{\partial \delta \theta_{i, i^{\prime}}} \\
+&=\frac{\partial 2\left\lfloor\left(\textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}} \otimes \gamma_{i, j}\right)^{*}\right\rfloor_{x y z}}{\partial \delta \theta_{i, i^{\prime}}} \\
+&=-\lim _{\delta \theta_{i, i^{\prime}} \rightarrow 0} \frac{2\left\lfloor \textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}} \otimes\left[\begin{array}{c}
+1 \\
+\frac{1}{2} \delta \theta_{i, i^{\prime}}
+\end{array}\right] \otimes \gamma_{i, j}\right\rfloor_{x y z}-2\left\lfloor \textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}} \otimes \gamma_{i, j}\right\rfloor_{x y z}}{\delta \theta_{i, i^{\prime}}} \\
+&=-\lim _{\delta \theta_{i, i^{\prime}} \rightarrow 0} \frac{2\left\lfloor\textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}} \otimes\left[\begin{array}{c}
+0 \\
+\frac{1}{2} \delta \theta_{i, i^{\prime}}
+\end{array}\right] \otimes \gamma_{i, j}\right\rfloor_{x y z}}{\delta \theta_{i, i^{\prime}}}
+\end{aligned}
+$$
+对四元数部分进行整理:
+$$
+\textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}} \otimes\left[\begin{array}{c}
+0 \\
+\frac{1}{2} \delta \theta_{i, i^{\prime}}
+\end{array}\right] \otimes \gamma_{i, j}=\left[\textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}}\right]_{L} \cdot\left[\gamma_{i, j}\right]_{R} \cdot\left[\begin{array}{c}
+0 \\
+\frac{1}{2} \delta \theta_{i, i^{\prime}}
+\end{array}\right]
+$$
+其中 $\left[\cdot \right]_{L} 、\left[\cdot \right]_{R}$ 为四元数转左/右乘矩阵算子。最终得:
+$$
+H_{i 33}=-\left\lfloor\left[\textcolor{Fuchsia}{q_{j}^{b j, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{i}^{\textcolor{Black}{w}, b i}}\right]_{L} \cdot\left[\gamma_{i, j}\right]_{R}\right\rfloor_{x y z}
+$$
+#### 1.4 第 $IV$ 行推导
+
+对第四行进行推导, 记:
+$$
+H_{i I V}=
+\left[
+\underbrace{\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta P_{i}^{w}}}_{H i 41} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta V_{i}^{w}}}_{H i 42} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\delta \theta_{i, i^{\prime}}}}_{H i 43} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{i}^{a}}}_{H i 44} 
+\quad
+\underbrace{\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{i}^{g}}}_{H i 45} 
+\right]
+$$
+
+$$
+H_{i 41}=\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta P_{i}^{w}}=0
+$$
+$$
+H_{i 42} =\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta V_{i}^{w}}=0
+$$
+
+$$
+H_{i 43} =\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta \theta_{i, i^{\prime}}}=0
+$$
+
+$$
+H_{i 44}=\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{i}^{a}} =\frac{\textcolor{Blue}{\partial}\left(B_{j}^{a}-B_{i}^{a}\right)}{\partial \delta B_{i}^{a}}=-I
+$$
+
+$$
+H_{i 45} =\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{i}^{g}}=0
+$$
+
+
+
+#### 1.5 第 $V$ 行推导
+
+对第五行进行推导, 记:
+$$
+H_{i V}=
+\left[
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta P_{i}^{w}}}_{H i 51} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta V_{i}^{w}}}_{H i 52} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta \theta_{i, i^{\prime}}}}_{H i 53} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{i}^{a}}}_{H i 54} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{i}^{g}}}_{H i 55}
+\right]
+$$
+
+$$
+H_{i 51}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta P_{i}^{w}}=0
+$$
+
+$$
+H_{i 52}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta V_{i}^{w}}=0
+$$
+
+$$
+H_{i 53}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta \theta_{i, i^{\prime}}}=0
+$$
+
+$$
+H_{i 54}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{i}^{a}}=0
+$$
+
+
+$$
+H_{i 55}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{i}^{g}}=\frac{\textcolor{Fuchsia}{\partial}\left(B_{j}^{g}-B_{i}^{g}\right)}{\partial \delta B_{i}^{g}}=-I
+$$
+
+### 2. $H_{j}$ 推导
+
+$$
+H_{j}=\left[\begin{array}{ccccc}
+\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta P_{j}^{w}} 
+& \frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta V_{j}^{w}} 
+& \frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta \theta_{j, j^{\prime}}} 
+& \frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{j}^{a}} 
+& \left.\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{j}^{g}}\right\} \mathrm{I} 
+\\
+\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta P_{j}^{w}} 
+& \frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta V_{j}^{w}} 
+& \frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta \theta_{j, j^{\prime}}} 
+& \frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{j}^{a}} 
+& \left.\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{j}^{g}}\right\} I I 
+\\
+\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta P_{j}^{w}} 
+& \frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta V_{j}^{w}} 
+& \frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta \theta_{j, j^{\prime}}} 
+& \frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{j}^{a}} 
+& \left.\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{j}^{g}}\right\} I I I 
+\\
+\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta P_{j}^{w}} 
+& \frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta V_{j}^{w}} 
+& \frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta \theta_{j, j^{\prime}}} 
+& \frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{j}^{a}} 
+& \left.\frac{\textcolor{Blue}{\partial e_{i, j}^{B a}}}{\partial \delta B_{j}^{g}}\right\} I V 
+\\
+\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta P_{j}^{w}} 
+& \frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta V_{j}^{w}} 
+& \frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\delta \delta \theta_{j, j^{\prime}}} 
+& \frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{j}^{a}} 
+& \left.\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{j}^{g}}\right\} V
+\end{array}\right]
+$$
+#### 2.1 第 $I$ 行推导
+
+$$
+H_{j \mathrm{I}}=
+\left[
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta P_{j}^{w}}}_{H j 11} 
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta V_{j}^{w}}}_{H j 12}
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta \theta_{j, j^{\prime}}}}_{H j 13} 
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{j}^{a}}}_{H j 14} 
+\quad
+\underbrace{\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{j}^{g}}}_{H j 15}
+\right]
+$$
+
+$$
+H_{j 11}=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta P_{j}^{w}}=\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}}
+$$
+$$
+H_{j 12}=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta V_{j}^{w}}=0
+$$
+
+$$
+H_{j 13}=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta \theta_{j, j^{\prime}}}=0
+$$
+
+
+
+由于预积分与末状态的 $B_{j}^{a} 、 B_{j}^{g}$ 无关, 所以
+$$
+H_{j 14}=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{j}^{a}}=\frac{\textcolor{Red}{\partial\left(-\alpha_{i, j}\right)}}{\partial \delta B_{j}^{a}}=0
+$$
+
+$$
+H_{i 15}=\frac{\textcolor{Red}{\partial e_{i, j}^{\alpha}}}{\partial \delta B_{j}^{g}}=\frac{\textcolor{Red}{\partial\left(-\alpha_{i, j}\right)}}{\partial \delta B_{j}^{g}}=0
+$$
+#### 2.2 第 $II$ 行推导
+
+对第二行进行推导, 记:
+$$
+H_{j I I}=
+\left[
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta P_{j}^{w}}}_{H j 21} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta V_{j}^{w}}}_{H j 22} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta \theta_{j, j^{\prime}}}}_{H j 23} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{j}^{a}}}_{H j 24} 
+\quad
+\underbrace{\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{j}^{g}}}_{H j 25}
+\right]
+$$
+
+$$
+H_{j 21}=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta P_{j}^{w}}=0
+$$
+
+$$
+\begin{aligned}
+H_{j 22}
+&=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta V_{j}^{w}}=\frac{\textcolor{BurntOrange}{\partial \beta_{i, j}^{h}}}{\partial \delta V_{i}^{w}} \\
+&=\frac{\partial \textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}} \cdot\left(\textcolor{PineGreen}{V_{j}^{w}}-\textcolor{Blue}{V_{w, i}}+g^{w} \cdot t_{i, j}\right)}{\partial \delta V_{i}^{w}} \\
+&=\textcolor{Fuchsia}{R^{-1}\left\{q_{i}^{w, b i}\right\}}
+\end{aligned}
+$$
+
+$$
+H_{j 23}=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta \theta_{j, j^{\prime}}}=0
+$$
+
+$$
+H_{j 24}=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{j}^{a}}=0
+$$
+
+
+$$
+H_{j 25}=\frac{\textcolor{BurntOrange}{\partial e_{i, j}^{\beta}}}{\partial \delta B_{j}^{g}}=0
+$$
+
+
+
+
+#### 2.3 第 $III$ 行推导
+
+对第三行进行推导, 记:
+$$
+H_{j I I I}=
+\left[
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta P_{j}^{w}}}_{H j 31} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta V_{j}^{w}}}_{H j 32} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta \theta_{j, j^{\prime}}}}_{H j 33} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{j}^{a}}}_{H j 34} 
+\quad
+\underbrace{\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta B_{j}^{g}}}_{H j 35}
+\right]
+$$
+
+$$
+H_{j 31}=\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta P_{j}^{w}}=0
+$$
+
+$$
+H_{j 32}=\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta V_{j}^{w}}=0
+$$
+
+$$
+H_{j 33}=\frac{\textcolor{PineGreen}{\partial 2\left\lfloor e_{i, j}^{\gamma}\right\rfloor_{x y z}}}{\partial \delta \theta_{j, j^{\prime}}}=\frac{\partial 2\left\lfloor\gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}}\right\rfloor_{x y z}}{\partial \delta \theta_{j, j^{\prime}}}
+$$
+
+
+
+在 $b j$ 坐标系上添加右扰动 $\delta \theta_{j, j^{\prime}}$, 可得
+$$
+\begin{aligned}
+H_{j 33} 
+&= \frac{\partial 2 \left \lfloor \gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}} \right \rfloor_{x y z}}{\partial \delta \theta_{j, j^{\prime}}}
+\\
+&= \lim_{\delta \theta_{j, j^{\prime}} \rightarrow 0}
+\frac {2 \left \lfloor \gamma_{i ,j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{bi , \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w} , bj}} \otimes
+\begin{bmatrix}
+1 \\
+\frac{1}{2} \delta \theta_{j, j^{\prime}}
+\end{bmatrix}
+\right\rfloor_{x y z} - 2\left\lfloor\gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}}\right\rfloor_{x y z} }
+{ \partial \delta \theta_{j, j^{\prime}}} \\
+&= -\lim_{\delta \theta_{j, j^{\prime}} \rightarrow 0} 
+\frac{2 \left \lfloor \gamma_{i ,j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{bi , \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w} , bj}} \otimes
+\begin{bmatrix}
+1 \\
+\frac{1}{2} \delta \theta_{j, j^{\prime}}
+\end{bmatrix}
+\right\rfloor_{x y z}}
+{\partial \delta \theta_{j, j^{\prime}}}
+\end{aligned}
+$$
+对四元数部分进行整理:
+$$
+\gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}} \otimes\left[\begin{array}{c}
+0 \\
+\frac{1}{2} \delta \theta_{j, j^{\prime}}
+\end{array}\right]
+=\left[\gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}}\right]_{L} \cdot\left[\begin{array}{c}
+0 \\
+\frac{1}{2} \delta \theta_{j, j^{\prime}}
+\end{array}\right]
+$$
+最终得:
+$$
+H_{j 33}=\left\lfloor\left[\gamma_{i, j}^{*} \otimes \textcolor{Fuchsia}{q_{i}^{b i, \textcolor{Black}{w}}} \otimes \textcolor{Fuchsia}{q_{j}^{\textcolor{Black}{w}, b j}}\right]_{L}\right\rfloor_{x y z}
+$$
+
+#### 2.4 第 $IV$ 行推导
+
+对第四行进行推导, 记:
+$$
+H_{j I V}=
+\left[
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta P_{j}^{w}}}_{H j 41} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta V_{j}^{w}}}_{H j 42} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\delta \theta_{j, j^{\prime}}}}_{H j 43} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta B_{j}^{a}}}_{H j 44} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta B_{j}^{g}}}_{H j 45}
+\right]
+$$
+$$
+H_{j 41}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta P_{j}^{w}}=0
+$$
+
+$$
+H_{j 42}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta V_{j}^{w}}=0
+$$
+
+$$
+H_{j 43}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta \theta_{j, j^{\prime}}}=0
+$$
+
+$$
+H_{j 44}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta B_{j}^{a}}=\frac{\textcolor{Fuchsia}{\partial}\left(B_{j}^{a}-B_{i}^{a}\right)}{\partial \delta B_{j}^{a}}=I
+$$
+
+$$
+H_{j 45}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B a}}}{\partial \delta B_{j}^{g}}=0
+$$
+
+
+
+#### 2.5 第 $V$ 行推导
+
+对第五行进行推导, 记:
+$$
+H_{j V}=
+\left[
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta P_{j}^{w}}}_{H j 51} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta V_{j}^{w}}}_{H j 52} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta \theta_{j, j^{\prime}}}}_{H j 53} 
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{j}^{a}}}_{H j 54}  
+\quad
+\underbrace{\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{j}^{g}}}_{H j 55} 
+\right]
+$$
+
+$$
+H_{j 51} =\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta P_{j}^{w}}=0
+$$
+
+$$
+H_{j 52} =\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta V_{j}^{w}}=0
+$$
+
+$$
+H_{j 53}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta \theta_{j, j^{\prime}}}=0
+$$
+
+$$
+H_{j 54}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{j}^{a}}=0
+$$
+
+$$
+H_{j 55}=\frac{\textcolor{Fuchsia}{\partial e_{i, j}^{B g}}}{\partial \delta B_{j}^{g}}=\frac{\textcolor{Fuchsia}{\partial}\left(B_{j}^{g}-B_{i}^{g}\right)}{\partial \delta B_{j}^{g}}=I
+$$
 
 ## 参考文献
 
