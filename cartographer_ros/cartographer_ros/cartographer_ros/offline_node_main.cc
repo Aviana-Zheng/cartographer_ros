@@ -36,6 +36,18 @@
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "urdf/model.h"
 
+/*
+|===可以理解为一个快速版本的cartographer
+   |===不监听任何topic,二是直接从数据包中读取传感器数据。发布的Topic与cartographer_node相同，
+       除此以外，还有：
+   |===@额外发布的Topic
+   |---------~bagfile_progress (cartographer_ros_msgs/BagfileProgress) 
+              解释：可查询处理包的进度等情况
+   |===@Parameters
+   |---------~bagfile_progress_pub_interval(double, default=10.0) 
+              解释：发布包数据的时间间隔。以s为单位；
+ */
+
 DEFINE_string(configuration_directory, "",
               "First directory in which configuration files are searched, "
               "second is always the Cartographer installation to allow "
@@ -270,7 +282,18 @@ void Run(const std::vector<string>& bag_filenames) {
 }  // namespace cartographer_ros
 
 int main(int argc, char** argv) {
+  // 初始化函数, 初始化参数一般是第一个命令行参数--即程序的名称
   google::InitGoogleLogging(argv[0]);
+  /*
+   1、 在main函数中加入：（一般是放在main函数的头几行，越早了解用户的需求越好么^_^）
+google::ParseCommandLineFlags(&argc, &argv, true);
+argc和argv想必大家都很清楚了，说明以下第三个参数的作用：
+如果设为true，则该函数处理完成后，argv中只保留argv[0]，argc会被设置为1。
+如果为false，则argv和argc会被保留，但是注意函数会调整argv中的顺序。
+
+   2、 这样，在后续代码中可以使用FLAGS_变量名访问对应的命令行参数了
+printf("%s", FLAGS_mystr);
+   */
   google::ParseCommandLineFlags(&argc, &argv, true);
 
   CHECK(!FLAGS_configuration_directory.empty())
@@ -279,14 +302,25 @@ int main(int argc, char** argv) {
       << "-configuration_basename is missing.";
   CHECK(!FLAGS_bag_filenames.empty()) << "-bag_filenames is missing.";
 
+  /*
+  当信号处理程序设置为函数并发生信号时，将定义实现是否在信号处理程序启动之前立即执行 std::signal(sig, SIG_DFL) 。
+  同样，该实现可以防止在信号处理程序运行时发生某些实现定义的信号集。
+  */
   std::signal(SIGINT, &::cartographer_ros::SigintHandler);
+  //::是域操作符，前面什么都不写代表的是全局函数，此函数不属于某个特定的类
+  /*
+  不安装 SIGINT 句柄.这种情况下你需要自己安装SIGINT句柄来保证节点在退出时候会正确的关闭 . 
+  SIGINT的默认操作是终结一个进行，所以如果你想自己处理 SIGTERM 你需要使用跟这个选项.
+   */
   ::ros::init(argc, argv, "cartographer_offline_node",
               ::ros::init_options::NoSigintHandler);
+  // ros::NodeHandler构造函数执行会调用ros::start()
   ::ros::start();
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;
   cartographer_ros::Run(
       cartographer_ros::SplitString(FLAGS_bag_filenames, ','));
 
+  //调用ros::shutdown()函数来关闭节点,会终结所有开放的订阅，发布，服务，调用
   ::ros::shutdown();
 }

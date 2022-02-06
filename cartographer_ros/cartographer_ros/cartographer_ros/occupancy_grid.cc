@@ -57,6 +57,7 @@ Eigen::AlignedBox2f ComputeMapBoundingBox(
 
 namespace cartographer_ros {
 
+// http://docs.ros.org/en/melodic/api/nav_msgs/html/msg/OccupancyGrid.html
 void BuildOccupancyGrid2D(
     const std::vector<::cartographer::mapping::TrajectoryNode>&
         trajectory_nodes,

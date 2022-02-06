@@ -71,6 +71,7 @@ constexpr float kAlpha = 1.f;
   CHECK_GE(id, 0);
   // Uniform color sampling using the golden ratio from
   // http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
+  // 如果成功，则返回除法的浮点余数。
   const float hue = std::fmod(kInitialHue + kGoldenRatioConjugate * id, 1.f);
   return HsvToRgb(hue, kSaturation, kValue);
 }

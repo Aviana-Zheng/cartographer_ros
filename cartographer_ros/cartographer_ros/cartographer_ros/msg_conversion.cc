@@ -41,12 +41,14 @@ namespace {
 // The ros::sensor_msgs::PointCloud2 binary data contains 4 floats for each
 // point. The last one must be this value or RViz is not showing the point cloud
 // properly.
+// 参考http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/PointField.html
 constexpr float kPointCloudComponentFourMagic = 1.;
 
 using ::cartographer::transform::Rigid3d;
 using ::cartographer::kalman_filter::PoseCovariance;
 using ::cartographer::sensor::PointCloudWithIntensities;
 
+// 参考http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/PointCloud2.html
 sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64 timestamp,
                                                    const string& frame_id,
                                                    const int num_points) {
@@ -77,11 +79,13 @@ sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64 timestamp,
 }
 
 // For sensor_msgs::LaserScan.
+// http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/LaserScan.html
 bool HasEcho(float) { return true; }
 
 float GetFirstEcho(float range) { return range; }
 
 // For sensor_msgs::MultiEchoLaserScan.
+// http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/LaserEcho.html
 bool HasEcho(const sensor_msgs::LaserEcho& echo) {
   return !echo.echoes.empty();
 }
@@ -91,6 +95,7 @@ float GetFirstEcho(const sensor_msgs::LaserEcho& echo) {
 }
 
 // For sensor_msgs::LaserScan and sensor_msgs::MultiEchoLaserScan.
+// https://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/MultiEchoLaserScan.html
 template <typename LaserMessageType>
 PointCloudWithIntensities LaserScanToPointCloudWithIntensities(
     const LaserMessageType& msg) {
@@ -108,6 +113,7 @@ PointCloudWithIntensities LaserScanToPointCloudWithIntensities(
     if (HasEcho(echoes)) {
       const float first_echo = GetFirstEcho(echoes);
       if (msg.range_min <= first_echo && first_echo <= msg.range_max) {
+        // laserscan返回的是距离，以激光发射束为x轴，通过旋转将点投影至激光雷达坐标系中
         const Eigen::AngleAxisf rotation(angle, Eigen::Vector3f::UnitZ());
         point_cloud.points.push_back(rotation *
                                      (first_echo * Eigen::Vector3f::UnitX()));

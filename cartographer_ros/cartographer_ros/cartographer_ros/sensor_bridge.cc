@@ -28,9 +28,10 @@ using carto::transform::Rigid3d;
 
 namespace {
 
+// LeadingSlash  前导斜线
 const string& CheckNoLeadingSlash(const string& frame_id) {
   if (frame_id.size() > 0) {
-    CHECK_NE(frame_id[0], '/');
+    CHECK_NE(frame_id[0], '/');  // 检查两者是否不相等
   }
   return frame_id;
 }
@@ -44,15 +45,18 @@ SensorBridge::SensorBridge(
     : tf_bridge_(tracking_frame, lookup_transform_timeout_sec, tf_buffer),
       trajectory_builder_(trajectory_builder) {}
 
+//  Twist - 线速度角速度
 void SensorBridge::HandleOdometryMessage(
     const string& sensor_id, const nav_msgs::Odometry::ConstPtr& msg) {
   const carto::common::Time time = FromRos(msg->header.stamp);
+  // T_(tracking_frame)_(msg->child_frame_id)
   const auto sensor_to_tracking = tf_bridge_.LookupToTracking(
       time, CheckNoLeadingSlash(msg->child_frame_id));
   if (sensor_to_tracking != nullptr) {
     trajectory_builder_->AddOdometerData(
         sensor_id, time,
         ToRigid3d(msg->pose.pose) * sensor_to_tracking->inverse());
+  // T_(msg->frame_id)_(msg->child_frame_id) * T_(msg->child_frame_id)_(tracking_frame)
   }
 }
 
@@ -70,17 +74,19 @@ void SensorBridge::HandleImuMessage(const string& sensor_id,
          "http://docs.ros.org/api/sensor_msgs/html/msg/Imu.html.";
 
   const carto::common::Time time = FromRos(msg->header.stamp);
+  // T_(tracking_frame)_(msg->header.frame_id)
   const auto sensor_to_tracking = tf_bridge_.LookupToTracking(
       time, CheckNoLeadingSlash(msg->header.frame_id));
   if (sensor_to_tracking != nullptr) {
     CHECK(sensor_to_tracking->translation().norm() < 1e-5)
-        << "The IMU frame must be colocated with the tracking frame. "
+        << "The IMU frame must be colocated(相同位置) with the tracking frame. "
            "Transforming linear acceleration into the tracking frame will "
-           "otherwise be imprecise.";
+           "otherwise be imprecise(不精确的).";
     trajectory_builder_->AddImuData(
         sensor_id, time,
         sensor_to_tracking->rotation() * ToEigen(msg->linear_acceleration),
         sensor_to_tracking->rotation() * ToEigen(msg->angular_velocity));
+    // R_(tracking_frame)_(msg->header.frame_id) * 线加速度/角加速度
   }
 }
 
@@ -115,9 +121,11 @@ void SensorBridge::HandleRangefinder(const string& sensor_id,
                                      const carto::common::Time time,
                                      const string& frame_id,
                                      const carto::sensor::PointCloud& ranges) {
+  // T_(tracking_frame)_(frame_id)
   const auto sensor_to_tracking =
       tf_bridge_.LookupToTracking(time, CheckNoLeadingSlash(frame_id));
   if (sensor_to_tracking != nullptr) {
+    // 将点云转换到tracking_frame中
     trajectory_builder_->AddRangefinderData(
         sensor_id, time, sensor_to_tracking->translation().cast<float>(),
         carto::sensor::TransformPointCloud(ranges,

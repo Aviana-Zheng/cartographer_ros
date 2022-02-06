@@ -55,6 +55,7 @@ void Write3DAssets(const std::vector<::cartographer::mapping::TrajectoryNode>&
   };
 
   carto::io::NullPointsProcessor null_points_processor;
+  // 旋转相机的位置，得到对应的投影
   carto::io::XRayPointsProcessor xy_xray_points_processor(
       voxel_size,
       carto::transform::Rigid3f::Rotation(
@@ -84,6 +85,7 @@ void Write3DAssets(const std::vector<::cartographer::mapping::TrajectoryNode>&
     points_batch->points = range_data.returns;
     ply_writing_points_processor.Process(std::move(points_batch));
   }
+  // 关闭文件
   ply_writing_points_processor.Flush();
 }
 

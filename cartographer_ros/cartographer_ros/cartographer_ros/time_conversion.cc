@@ -21,7 +21,10 @@
 
 namespace cartographer_ros {
 
+// kUtsEpochOffsetFromUnixEpochInSeconds  719162ll * 24ll * 60ll * 60ll   单位s
+// 719162 是0001年1月1日到1970年1月1日所经历的天数
 ::ros::Time ToRos(::cartographer::common::Time time) {
+  // 千万分之一秒,0.1us.    10000000   再化为ns，  *100
   int64 uts_timestamp = ::cartographer::common::ToUniversal(time);
   int64 ns_since_unix_epoch =
       (uts_timestamp -
@@ -34,6 +37,7 @@ namespace cartographer_ros {
 }
 
 // TODO(pedrofernandez): Write test.
+// ICU库 https://unicode-org.github.io/icu/userguide/datetime/timezone/
 ::cartographer::common::Time FromRos(const ::ros::Time& time) {
   // The epoch of the ICU Universal Time Scale is "0001-01-01 00:00:00.0 +0000",
   // exactly 719162 days before the Unix epoch.

@@ -110,6 +110,9 @@ Node::Node(const NodeOptions& node_options, tf2_ros::Buffer* const tf_buffer)
       node_handle_.advertise<sensor_msgs::PointCloud2>(
           kScanMatchedPointCloudTopic, kLatestOnlyPublisherQueueSize);
 
+  // Timers能让你以一定的频率来执行,他们是比ros::Rate更加灵活和有用的形式
+  // ros::Timer timer = n.createTimer(ros::Duration(0.1), timerCallback);
+  // ros::Timer ros::NodeHandle::createTimer(ros::Duration period, <callback>, bool oneshot = false);
   wall_timers_.push_back(node_handle_.createWallTimer(
       ::ros::WallDuration(node_options_.submap_publish_period_sec),
       &Node::PublishSubmapList, this));

@@ -78,7 +78,7 @@ Duration FromMilliseconds(int64 milliseconds);
 double ToSeconds(Duration duration);
 
 // Creates a time from a Universal Time Scale.
-//将TUC时间(0.1微秒)转化为c++的time_point对象
+//将UTC时间(0.1微秒)转化为c++的time_point对象
 Time FromUniversal(int64 ticks);
 
 // Outputs the Universal Time Scale timestamp for a given Time.

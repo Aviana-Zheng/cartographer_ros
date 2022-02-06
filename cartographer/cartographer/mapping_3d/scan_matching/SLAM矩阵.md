@@ -599,7 +599,7 @@ Hessian矩阵平时接触的可能不多, 但是Hessian矩阵的近似矩阵H矩
 $$
  \begin{aligned} E &=\|z-f(x)\|_{w}^{2}=\|z-f(x)+J \delta x\|_{w}^{2} \\ &=(e+J \delta x)^{T} W(e+J \delta x) \\ &=e^{T} w e+\delta x^{T} J^{T} W e+e^{T} W J \delta x+\delta x^{T} J^{T} W J \delta x \end{aligned} 
 $$
-其中 $ J^{T} W J $ 就称为 $ \mathrm{H} $ 矩阵。
+其中 $ J^{T} W J $ 就称为 $ \mathrm{H} $ 矩阵(单应矩阵)。
 
 Hessian矩阵其实说白了就是 $ E $ 对于状态变量 $ x $ 的二阶偏导数。而 $ \mathrm{H} $ 矩阵是对Hessian矩阵的近似, 主要是为了加速计算。
 
